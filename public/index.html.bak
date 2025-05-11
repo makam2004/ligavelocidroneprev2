@@ -1,100 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Alta de Pilotos - Liga Velocidrone</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 30px;
-      background-color: #f0f0f0;
-    }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    h1, h2 {
-      text-align: center;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      font-size: 16px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px 15px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    #mensaje, #listaJugadores {
-      margin-top: 20px;
-    }
-    .jugador {
-      padding: 5px 0;
-      border-bottom: 1px solid #ddd;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>LIGA VELOCIDRONE</title>
+  <link rel="stylesheet" href="main.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>LIGA VELOCIDRONE</h1>
-    <h2>Alta de jugador</h2>
-    <form id="formAlta">
-      <input type="text" id="nombre" placeholder="Nombre del piloto" required />
-      <button type="submit">Dar de alta</button>
-    </form>
-    <div id="mensaje"></div>
+  <div class="overlay" id="overlay"></div>
 
-    <h2>Jugadores registrados</h2>
-    <div id="listaJugadores">Cargando...</div>
+  <div class="container">
+    <header>
+      <div>
+        <img src="logo_velocidrone.png" alt="Logo">
+        <button id="btnReglamento">📘 Reglamento</button>
+      </div>
+      <h1 id="titulo">LIGA VELOCIDRONE</h1>
+      <div>
+        <img src="logo_velocidrone.png" alt="Logo">
+        <button id="btnAlta">➕ Alta de Piloto</button>
+      </div>
+    </header>
+
+    <div id="mejoras">
+      <!-- Aquí se insertarán dinámicamente las tablas por pista -->
+    </div>
   </div>
 
-  <script>
-    document.getElementById('formAlta').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nombre = document.getElementById('nombre').value;
-      const mensaje = document.getElementById('mensaje');
+  <div id="popup">
+    <h3>Reglamento</h3>
+    <div id="popupTexto"></div>
+  </div>
 
-      const res = await fetch('/api/jugadores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre })
-      });
+  <div id="popupAlta">
+    <h3>Alta de piloto</h3>
+    <form onsubmit="event.preventDefault(); alert('Alta enviada. (Función no implementada aún)')">
+      <input type="text" placeholder="Nombre del piloto" required style="width: 100%; padding: 10px; margin-top: 10px;" />
+      <button type="submit" style="margin-top: 10px;">Registrar</button>
+    </form>
+  </div>
 
-      const data = await res.json();
-      mensaje.textContent = data.message || data.error;
-      mensaje.style.color = res.ok ? 'green' : 'red';
-      if (res.ok) {
-        document.getElementById('nombre').value = '';
-        cargarJugadores(); // actualiza la lista
-      }
-    });
-
-    async function cargarJugadores() {
-      const res = await fetch('/api/jugadores');
-      const lista = document.getElementById('listaJugadores');
-      if (!res.ok) {
-        lista.textContent = 'Error al cargar jugadores.';
-        return;
-      }
-
-      const jugadores = await res.json();
-      lista.innerHTML = jugadores.map(j => `
-        <div class="jugador">
-          <strong>${j.nombre}</strong> (alta: ${new Date(j.fecha_alta).toLocaleDateString()})
-        </div>
-      `).join('');
-    }
-
-    cargarJugadores();
-  </script>
+  <script src="main.js" defer></script>
 </body>
 </html>

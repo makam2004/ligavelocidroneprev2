@@ -1,5 +1,5 @@
 import express from 'express';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer'; // ← puppeteer completo, no puppeteer-core
 import supabase from '../supabaseClient.js';
 
 const router = express.Router();
@@ -17,7 +17,11 @@ function calcularSemanaActual() {
 }
 
 async function obtenerResultados(url, nombresJugadores) {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
