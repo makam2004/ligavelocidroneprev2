@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Alta de Pilotos - Liga Velocidrone</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f0f0f0;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #mensaje, #listaJugadores {
+      margin-top: 20px;
+    }
+    .jugador {
+      padding: 5px 0;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>LIGA VELOCIDRONE</h1>
+    <h2>Alta de jugador</h2>
+    <form id="formAlta">
+      <input type="text" id="nombre" placeholder="Nombre del piloto" required />
+      <button type="submit">Dar de alta</button>
+    </form>
+    <div id="mensaje"></div>
+
+    <h2>Jugadores registrados</h2>
+    <div id="listaJugadores">Cargando...</div>
+  </div>
+
+  <script>
+    document.getElementById('formAlta').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('nombre').value;
+      const mensaje = document.getElementById('mensaje');
+
+      const res = await fetch('/api/jugadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre })
+      });
+
+      const data = await res.json();
+      mensaje.textContent = data.message || data.error;
+      mensaje.style.color = res.ok ? 'green' : 'red';
+      if (res.ok) {
+        document.getElementById('nombre').value = '';
+        cargarJugadores(); // actualiza la lista
+      }
+    });
+
+    async function cargarJugadores() {
+      const res = await fetch('/api/jugadores');
+      const lista = document.getElementById('listaJugadores');
+      if (!res.ok) {
+        lista.textContent = 'Error al cargar jugadores.';
+        return;
+      }
+
+      const jugadores = await res.json();
+      lista.innerHTML = jugadores.map(j => `
+        <div class="jugador">
+          <strong>${j.nombre}</strong> (alta: ${new Date(j.fecha_alta).toLocaleDateString()})
+        </div>
+      `).join('');
+    }
+
+    cargarJugadores();
+  </script>
+</body>
+</html>
