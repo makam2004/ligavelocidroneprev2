@@ -6,17 +6,16 @@ import tiemposMejorados from './routes/tiemposMejorados.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Resolución de rutas con ESModules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Servir archivos estáticos del frontend
+// Servir el contenido de la carpeta public/
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rutas API
+// Ruta que expone los tiempos mejorados
 app.use(tiemposMejorados);
 
-// Inicio del servidor
+// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor iniciado en http://localhost:${PORT}`);
 });
