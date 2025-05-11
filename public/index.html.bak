@@ -6,35 +6,36 @@
   <link rel="stylesheet" href="main.css" />
 </head>
 <body>
-  <!-- Fondo oscurecido para popups -->
+  <!-- Botones fuera del contenedor -->
+  <div class="top-bar">
+    <div class="left">
+      <button id="btnReglamento">📘 Reglamento</button>
+    </div>
+    <div class="right">
+      <button id="btnAlta">➕ Alta de Piloto</button>
+    </div>
+  </div>
+
+  <!-- Fondo oscuro de popups -->
   <div class="overlay" id="overlay"></div>
 
   <div class="container">
     <header>
-      <div>
-        <button id="btnReglamento">📘 Reglamento</button>
-        <img src="logo_velocidrone.png" alt="Logo">
-      </div>
       <h1 id="titulo">LIGA VELOCIDRONE</h1>
-      <div>
-        <img src="logo_velocidrone.png" alt="Logo">
-        <button id="btnAlta">➕ Alta de Piloto</button>
-      </div>
     </header>
 
     <div id="mejoras">
-      <!-- Aquí se insertarán dinámicamente las tablas por pista -->
+      <!-- Resultados -->
     </div>
   </div>
 
-  <!-- Popup del Reglamento -->
+  <!-- Popups: Reglamento y Alta -->
   <div id="popup">
     <h3>Reglamento</h3>
     <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
     <div id="popupTexto"></div>
   </div>
 
-  <!-- Popup del Alta de piloto -->
   <div id="popupAlta">
     <h3>Alta de piloto</h3>
     <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
@@ -47,4 +48,5 @@
 
   <script src="main.js" defer></script>
 </body>
+
 </html>

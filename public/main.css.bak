@@ -106,6 +106,8 @@ tr.empeorado td { color: #ff4444; }
   display: none;
   z-index: 999;
   max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
 }
 

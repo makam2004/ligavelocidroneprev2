@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="main.css" />
 </head>
 <body>
-  <!-- Botones fuera del contenedor -->
+  <!-- Botones arriba fuera del recuadro -->
   <div class="top-bar">
     <div class="left">
       <button id="btnReglamento">📘 Reglamento</button>
@@ -19,34 +19,39 @@
   <!-- Fondo oscuro de popups -->
   <div class="overlay" id="overlay"></div>
 
+  <!-- Contenedor principal -->
   <div class="container">
     <header>
       <h1 id="titulo">LIGA VELOCIDRONE</h1>
     </header>
 
     <div id="mejoras">
-      <!-- Resultados -->
+      <!-- Resultados dinámicos -->
     </div>
   </div>
 
-  <!-- Popups: Reglamento y Alta -->
+  <!-- Popup Reglamento -->
   <div id="popup">
     <h3>Reglamento</h3>
     <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
     <div id="popupTexto"></div>
   </div>
 
+  <!-- Popup Alta de Piloto -->
   <div id="popupAlta">
     <h3>Alta de piloto</h3>
     <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
     <form onsubmit="registrarJugador(event)">
       <input id="nombreJugador" type="text" placeholder="Nombre del Piloto en Velocidrone" required style="width: 100%; padding: 10px; margin-top: 10px;" />
+      <!-- hCaptcha -->
+      <div class="h-captcha" data-sitekey="8ac62e84-891a-4d2e-b8a0-e39aabb4b246"></div>
       <button type="submit" style="margin-top: 10px;">Registrar</button>
     </form>
     <div id="mensajeAlta" style="margin-top: 10px; color: lightgreen;"></div>
   </div>
 
+  <!-- Scripts -->
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   <script src="main.js" defer></script>
 </body>
-
 </html>
