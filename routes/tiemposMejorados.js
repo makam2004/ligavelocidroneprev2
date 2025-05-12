@@ -1,5 +1,5 @@
 import express from 'express';
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 import supabase from '../supabaseClient.js';
 
 const router = express.Router();
@@ -18,8 +18,9 @@ function calcularSemanaActual() {
 
 async function obtenerResultados(url, nombresJugadores) {
   try {
-    const browser = await chromium.launch({
+    const browser = await puppeteer.launch({
       headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();
