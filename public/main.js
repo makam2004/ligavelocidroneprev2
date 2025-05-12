@@ -71,15 +71,19 @@ async function registrarJugador(event) {
 }
 
 async function cargarMejoras() {
+  const cont1 = document.getElementById('track1');
+  const cont2 = document.getElementById('track2');
+  const progress = document.getElementById('progressBar');
+
+  // Mostrar mensaje inicial y resetear ranking semanal
+  cont1.innerHTML = '<p class="cargando">Leyendo Resultados...</p>';
+  cont2.innerHTML = '<p class="cargando">Leyendo Resultados...</p>';
+  progress.style.width = '25%';
+
   try {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
-
-	const cont1 = document.getElementById('track1');
-	const cont2 = document.getElementById('track2');
-
-	cont1.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
-	cont2.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
+    progress.style.width = '50%';
 
     const semanal = {};
     const puntos = [10, 8, 6, 4, 2];
@@ -130,8 +134,14 @@ async function cargarMejoras() {
         <tbody>${ranking.join('')}</tbody>
       </table>
     `;
+
+    progress.style.width = '100%';
+    setTimeout(() => { progress.style.width = '0%'; }, 600);
+
   } catch (err) {
     console.error(err);
-    document.getElementById('mejoras').innerHTML = '<p>Error al cargar los resultados.</p>';
+    cont1.innerHTML = '<p class="cargando">Error al cargar resultados.</p>';
+    cont2.innerHTML = '<p class="cargando">Error al cargar resultados.</p>';
+    progress.style.width = '0%';
   }
 }

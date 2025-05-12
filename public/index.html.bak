@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>LIGA VELOCIDRONE</title>
-  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="main.css" />
 </head>
 <body>
-  <!-- Barra superior con botones -->
+  <!-- Barra superior -->
   <div class="top-bar">
     <div class="left">
       <button id="btnReglamento">📘 Reglamento</button>
     </div>
     <div class="center">
-            <h1 id="titulo">LIGA VELOCIDRONE</h1>
+      <h1 id="titulo">LIGA VELOCIDRONE</h1>
     </div>
     <div class="right">
       <button id="btnAlta">➕ Alta de Piloto</button>
@@ -24,7 +24,23 @@
 
   <!-- Contenedor principal -->
   <div class="container">
-    <div id="mejoras"></div>
+    <!-- Tracks -->
+    <div class="track-container">
+      <div id="track1" class="card"></div>
+      <div id="track2" class="card"></div>
+    </div>
+
+    <!-- Rankings -->
+    <div class="ranking-container">
+      <div id="rankingSemanal" class="card">
+        <h2>Ranking Semanal</h2>
+        <div id="tablaSemanal"></div>
+      </div>
+      <div id="rankingAnual" class="card">
+        <h2>Ranking Anual</h2>
+        <div id="tablaAnual">Próximamente...</div>
+      </div>
+    </div>
   </div>
 
   <!-- Popup Reglamento -->
