@@ -16,23 +16,22 @@ function obtenerSemanaActual() {
   return Math.ceil((dias + inicio.getDay() + 1) / 7);
 }
 
-async function mostrarReglamento() {
-  const res = await fetch('reglamento.txt');
-  const texto = await res.text();
-  document.getElementById('popupTexto').innerHTML = `<pre>${texto}</pre>`;
-  document.getElementById('popup').style.display = 'block';
-  document.getElementById('overlay').style.display = 'block';
-}
-
 function mostrarAlta() {
   document.getElementById('popupAlta').style.display = 'block';
   document.getElementById('overlay').style.display = 'block';
+  if (window.hcaptcha) hcaptcha.render(document.querySelector('.h-captcha'), {
+    sitekey: '8ac62e84-891a-4d2e-b8a0-e39aabb4b246'
+  });
+}
 
-  if (window.hcaptcha) {
-    hcaptcha.render(document.querySelector('.h-captcha'), {
-      sitekey: '8ac62e84-891a-4d2e-b8a0-e39aabb4b246' // sitekey de test público
+function mostrarReglamento() {
+  fetch('reglamento.txt')
+    .then(res => res.text())
+    .then(txt => {
+      document.getElementById('popupTexto').innerHTML = `<pre>${txt}</pre>`;
+      document.getElementById('popup').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
     });
-  }
 }
 
 function cerrarPopups() {
@@ -46,7 +45,6 @@ function cerrarPopups() {
 
 async function registrarJugador(event) {
   event.preventDefault();
-
   const nombre = document.getElementById('nombreJugador').value.trim();
   const token = document.querySelector('[name="h-captcha-response"]')?.value;
   const mensaje = document.getElementById('mensajeAlta');
@@ -64,12 +62,8 @@ async function registrarJugador(event) {
     });
 
     const json = await res.json();
-    if (res.ok) {
-      mensaje.textContent = 'Jugador registrado correctamente.';
-      hcaptcha.reset();
-    } else {
-      mensaje.textContent = json?.error || 'Error al registrar.';
-    }
+    mensaje.textContent = res.ok ? 'Jugador registrado correctamente.' : (json?.error || 'Error al registrar.');
+    if (res.ok && window.hcaptcha) hcaptcha.reset();
   } catch (err) {
     console.error(err);
     mensaje.textContent = 'Error al conectar con el servidor.';
@@ -77,21 +71,23 @@ async function registrarJugador(event) {
 }
 
 async function cargarMejoras() {
-  const contenedor = document.getElementById('mejoras');
-  contenedor.innerHTML = '<p>Cargando resultados...</p>';
-
   try {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
-    contenedor.innerHTML = '';
 
-    data.forEach(pista => {
-      const card = document.createElement('div');
-      card.classList.add('card');
+    const cont1 = document.getElementById('track1');
+    const cont2 = document.getElementById('track2');
+    const semanal = {};
+    const puntos = [10, 8, 6, 4, 2];
 
-      const titulo = document.createElement('h2');
+    cont1.innerHTML = '';
+    cont2.innerHTML = '';
+
+    data.forEach((pista, index) => {
+      const container = index === 0 ? cont1 : cont2;
+      const titulo = document.createElement('h3');
       titulo.textContent = `${pista.escenario} - ${pista.pista}`;
-      card.appendChild(titulo);
+      container.appendChild(titulo);
 
       const tabla = document.createElement('table');
       tabla.innerHTML = `
@@ -102,15 +98,36 @@ async function cargarMejoras() {
           ${pista.resultados.map((r, i) => {
             const clase = r.mejora < 0 ? 'mejorado' : r.mejora > 0 ? 'empeorado' : '';
             const mejora = r.mejora === 0 ? '=' : (r.mejora > 0 ? '+' : '') + r.mejora.toFixed(2) + ' s';
-            return `<tr class="${clase}"><td>${i + 1}</td><td>${r.jugador}</td><td>${r.tiempo.toFixed(2)} s</td><td>${mejora}</td></tr>`;
+
+            const puntosGanados = puntos[i] ?? 1;
+            semanal[r.jugador] = (semanal[r.jugador] || 0) + puntosGanados;
+
+            return `<tr class="${clase}">
+              <td>${i + 1}</td>
+              <td>${r.jugador}</td>
+              <td>${r.tiempo.toFixed(2)} s</td>
+              <td>${mejora}</td>
+            </tr>`;
           }).join('')}
         </tbody>
       `;
-      card.appendChild(tabla);
-      contenedor.appendChild(card);
+      container.appendChild(tabla);
     });
+
+    // Mostrar Ranking Semanal
+    const tablaSemanal = document.getElementById('tablaSemanal');
+    const ranking = Object.entries(semanal)
+      .sort((a, b) => b[1] - a[1])
+      .map(([nombre, puntos], i) => `<tr><td>${i + 1}</td><td>${nombre}</td><td>${puntos} pts</td></tr>`);
+
+    tablaSemanal.innerHTML = `
+      <table>
+        <thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead>
+        <tbody>${ranking.join('')}</tbody>
+      </table>
+    `;
   } catch (err) {
     console.error(err);
-    contenedor.innerHTML = '<p>Error al cargar los resultados.</p>';
+    document.getElementById('mejoras').innerHTML = '<p>Error al cargar los resultados.</p>';
   }
 }

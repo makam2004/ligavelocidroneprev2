@@ -14,23 +14,20 @@ body {
   left: 0;
   width: 100%;
   background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  flex-wrap: wrap;
-  padding: 15px 30px;
+  padding: 15px 20px;
   z-index: 1000;
 }
 
 .top-bar .left,
 .top-bar .right {
-  flex: 0 0 auto;
   display: flex;
-  align-items: center;
+  justify-content: center;
 }
 
 .top-bar .center {
-  flex: 1;
   text-align: center;
 }
 
@@ -124,6 +121,13 @@ th, td {
 
 #popup h3, #popupAlta h3 {
   margin-top: 0;
+}
+
+#popup pre {
+  font-size: 1.2em;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Fondo oscuro */

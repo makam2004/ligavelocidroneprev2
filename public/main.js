@@ -75,8 +75,12 @@ async function cargarMejoras() {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
 
-    const cont1 = document.getElementById('track1');
-    const cont2 = document.getElementById('track2');
+	const cont1 = document.getElementById('track1');
+	const cont2 = document.getElementById('track2');
+
+	cont1.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
+	cont2.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
+
     const semanal = {};
     const puntos = [10, 8, 6, 4, 2];
 
