@@ -27,6 +27,12 @@ async function mostrarReglamento() {
 function mostrarAlta() {
   document.getElementById('popupAlta').style.display = 'block';
   document.getElementById('overlay').style.display = 'block';
+
+  if (window.hcaptcha) {
+    hcaptcha.render(document.querySelector('.h-captcha'), {
+      sitekey: '8ac62e84-891a-4d2e-b8a0-e39aabb4b246' // sitekey de test público
+    });
+  }
 }
 
 function cerrarPopups() {
