@@ -1,5 +1,5 @@
 import express from 'express';
-import puppeteer from 'puppeteer'; // ← puppeteer completo, no puppeteer-core
+import puppeteer from 'puppeteer';
 import supabase from '../supabaseClient.js';
 
 const router = express.Router();
@@ -113,7 +113,6 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     }
 
     comparados.sort((a, b) => a.tiempo - b.tiempo);
-
     respuesta.push({ pista, escenario, resultados: comparados });
   }
 

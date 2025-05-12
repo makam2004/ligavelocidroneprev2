@@ -18,19 +18,23 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 15px 30px;
+  flex-wrap: wrap;
   z-index: 1000;
 }
 
 .top-bar .left, .top-bar .right {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .top-bar .center {
   display: flex;
   align-items: center;
   gap: 20px;
-  flex-direction: row;
+  flex: 1;
+  flex-direction: column;
+  text-align: center;
 }
 
 .top-bar button {
@@ -51,7 +55,7 @@ body {
 /* Contenedor principal */
 .container {
   padding: 40px 20px;
-  margin-top: 120px;
+  margin-top: 140px;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
