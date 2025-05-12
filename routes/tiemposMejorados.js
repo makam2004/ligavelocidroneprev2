@@ -19,7 +19,8 @@ function calcularSemanaActual() {
 async function obtenerResultados(url, nombresJugadores) {
   try {
     const browser = await puppeteer.launch({
-      headless: "new",
+      headless: true,
+      executablePath: puppeteer.executablePath(),
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 

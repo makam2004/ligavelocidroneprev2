@@ -17,15 +17,15 @@ function calcularSemanaActual() {
 }
 
 async function obtenerResultados(url, nombresJugadores) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-
   try {
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
     await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('a')).filter(el => el.textContent.includes('Race Mode'));
       if (tabs.length > 0) tabs[0].click();
@@ -52,7 +52,6 @@ async function obtenerResultados(url, nombresJugadores) {
     return { pista, escenario, resultados };
   } catch (e) {
     console.error('Scraping error:', e);
-    await browser.close();
     return { pista: 'Error', escenario: 'Error', resultados: [] };
   }
 }
