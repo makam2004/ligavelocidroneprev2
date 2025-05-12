@@ -35,16 +35,18 @@ function cerrarPopups() {
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('mensajeAlta').textContent = '';
   document.getElementById('nombreJugador').value = '';
+  if (window.hcaptcha) hcaptcha.reset();
 }
 
 async function registrarJugador(event) {
   event.preventDefault();
 
   const nombre = document.getElementById('nombreJugador').value.trim();
+  const token = document.querySelector('[name="h-captcha-response"]')?.value;
   const mensaje = document.getElementById('mensajeAlta');
 
-  if (!nombre) {
-    mensaje.textContent = 'Por favor, introduce un nombre.';
+  if (!nombre || !token) {
+    mensaje.textContent = 'Por favor, completa el captcha y el nombre.';
     return;
   }
 
@@ -52,14 +54,15 @@ async function registrarJugador(event) {
     const res = await fetch('/api/alta-jugador', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre })
+      body: JSON.stringify({ nombre, token })
     });
 
+    const json = await res.json();
     if (res.ok) {
       mensaje.textContent = 'Jugador registrado correctamente.';
+      hcaptcha.reset();
     } else {
-      const error = await res.json();
-      mensaje.textContent = error?.error || 'Error al registrar.';
+      mensaje.textContent = json?.error || 'Error al registrar.';
     }
   } catch (err) {
     console.error(err);
