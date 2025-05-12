@@ -1,12 +1,8 @@
 import express from 'express';
-import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 import supabase from '../supabaseClient.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const urls = [
   'https://www.velocidrone.com/leaderboard/33/1527/All',
@@ -22,13 +18,8 @@ function calcularSemanaActual() {
 
 async function obtenerResultados(url, nombresJugadores) {
   try {
-    const browser = await puppeteer.launch({
+    const browser = await chromium.launch({
       headless: true,
-      executablePath: join(
-        __dirname,
-        '../node_modules/puppeteer/.local-chromium/linux-1270205/chrome-linux/chrome'
-      ),
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();

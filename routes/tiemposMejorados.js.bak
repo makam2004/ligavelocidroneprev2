@@ -1,8 +1,12 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
 import supabase from '../supabaseClient.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const urls = [
   'https://www.velocidrone.com/leaderboard/33/1527/All',
@@ -20,7 +24,10 @@ async function obtenerResultados(url, nombresJugadores) {
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      executablePath: puppeteer.executablePath(),
+      executablePath: join(
+        __dirname,
+        '../node_modules/puppeteer/.local-chromium/linux-1270205/chrome-linux/chrome'
+      ),
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
@@ -28,7 +35,9 @@ async function obtenerResultados(url, nombresJugadores) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
 
     await page.evaluate(() => {
-      const tabs = Array.from(document.querySelectorAll('a')).filter(el => el.textContent.includes('Race Mode'));
+      const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
+        el.textContent.includes('Race Mode')
+      );
       if (tabs.length > 0) tabs[0].click();
     });
 
@@ -38,15 +47,17 @@ async function obtenerResultados(url, nombresJugadores) {
     const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
     const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
-      return filas.map(fila => {
-        const celdas = fila.querySelectorAll('td');
-        const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
-        const jugador = celdas[2]?.innerText.trim();
-        if (jugadores.includes(jugador)) {
-          return { tiempo, jugador };
-        }
-        return null;
-      }).filter(Boolean);
+      return filas
+        .map(fila => {
+          const celdas = fila.querySelectorAll('td');
+          const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
+          const jugador = celdas[2]?.innerText.trim();
+          if (jugadores.includes(jugador)) {
+            return { tiempo, jugador };
+          }
+          return null;
+        })
+        .filter(Boolean);
     }, nombresJugadores);
 
     await browser.close();
