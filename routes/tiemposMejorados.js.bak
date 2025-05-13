@@ -39,7 +39,7 @@ async function obtenerResultados(url) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Activar pestaña "Race Mode: Single Class"
+  // Clic en pestaña "Race Mode: Single Class"
   await page.evaluate(() => {
     const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
       el.textContent.includes('Race Mode: Single Class')
@@ -49,16 +49,14 @@ async function obtenerResultados(url) {
 
   await page.waitForSelector('tbody tr', { timeout: 10000 });
 
-  // Escenario y pista
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  // Extraer datos correctos
   const resultados = await page.$$eval('tbody tr', filas => {
     return filas.map(fila => {
       const celdas = fila.querySelectorAll('td');
-      const jugador = celdas[4]?.innerText.trim(); // Player
-      const tiempoStr = celdas[5]?.innerText.trim(); // Time
+      const jugador = celdas[4]?.innerText.trim(); // ✅ Player
+      const tiempoStr = celdas[1]?.innerText.trim(); // ✅ Time
       const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', '')) || 0;
       return { jugador, tiempo };
     });
@@ -93,7 +91,6 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     respuesta.push({ pista, escenario, resultados: comparados });
   }
 
-  // Depuración de estructura
   console.log('[API] Resultado final enviado:');
   console.log(JSON.stringify(respuesta, null, 2));
 
