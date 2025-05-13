@@ -39,7 +39,7 @@ async function obtenerResultados(url) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Hacer clic en pestaña "Race Mode: Single Class"
+  // Clic en pestaña "Race Mode: Single Class"
   await page.evaluate(() => {
     const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
       el.textContent.includes('Race Mode: Single Class')
@@ -47,21 +47,17 @@ async function obtenerResultados(url) {
     if (tabs.length > 0) tabs[0].click();
   });
 
-  // Esperar a que cargue la tabla después del clic
   await page.waitForSelector('tbody tr', { timeout: 10000 });
 
-  // Extraer nombres de escenario y pista
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  // Leer los resultados
   const resultados = await page.$$eval('tbody tr', filas => {
     return filas.map(fila => {
       const celdas = fila.querySelectorAll('td');
-      const jugador = celdas[3]?.innerText.trim(); // columna Player (índice 3)
-      const tiempoStr = celdas[4]?.innerText.trim(); // columna Time (índice 4)
-      const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', ''));
-
+      const jugador = celdas[3]?.innerText.trim(); // columna "Player"
+      const tiempoStr = celdas[4]?.innerText.trim(); // columna "Time"
+      const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', '')) || 0;
       return { jugador, tiempo };
     });
   });
@@ -77,13 +73,8 @@ async function obtenerResultados(url) {
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
-
-  // 🔁 Comentado el filtro temporal para depuración
-  // const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
-  // const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
-  // const nombresPermitidos = Object.keys(nombreToId);
-
   const urls = await obtenerURLsDesdeConfiguracion();
+
   if (!urls.length) return res.status(500).json({ error: 'No hay configuración de tracks.' });
 
   const respuesta = [];
@@ -94,7 +85,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     const comparados = resultados.map((r, i) => ({
       jugador: r.jugador,
       tiempo: r.tiempo,
-      mejora: i === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // temporal
+      mejora: '–'
     }));
 
     respuesta.push({ pista, escenario, resultados: comparados });

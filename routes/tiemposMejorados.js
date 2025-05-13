@@ -39,7 +39,6 @@ async function obtenerResultados(url) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Clic en pestaña "Race Mode: Single Class"
   await page.evaluate(() => {
     const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
       el.textContent.includes('Race Mode: Single Class')
@@ -90,6 +89,10 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
 
     respuesta.push({ pista, escenario, resultados: comparados });
   }
+
+  // Log de depuración final
+  console.log('[API] Enviando respuesta JSON:');
+  console.log(JSON.stringify(respuesta, null, 2));
 
   res.json(respuesta);
 });
