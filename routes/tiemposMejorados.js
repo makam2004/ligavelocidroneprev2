@@ -38,7 +38,7 @@ async function obtenerResultados(url) {
 
   const page = await browser.newPage();
   await page.goto(url);
-  await page.waitForTimeout(3000);
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   try {
     await page.waitForSelector('tbody tr', { timeout: 20000 });

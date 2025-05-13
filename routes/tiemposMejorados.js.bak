@@ -4,6 +4,13 @@ import supabase from '../supabaseClient.js';
 
 const router = express.Router();
 
+function calcularSemanaActual() {
+  const fecha = new Date();
+  const inicio = new Date(fecha.getFullYear(), 0, 1);
+  const dias = Math.floor((fecha - inicio) / 86400000);
+  return Math.ceil((dias + inicio.getDay() + 1) / 7);
+}
+
 async function obtenerURLsDesdeConfiguracion() {
   const { data, error } = await supabase
     .from('configuracion')
@@ -23,118 +30,77 @@ async function obtenerURLsDesdeConfiguracion() {
   ];
 }
 
+async function obtenerResultados(url) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 
-function calcularSemanaActual() {
-  const fecha = new Date();
-  const inicio = new Date(fecha.getFullYear(), 0, 1);
-  const dias = Math.floor((fecha - inicio) / 86400000);
-  return Math.ceil((dias + inicio.getDay() + 1) / 7);
-}
+  const page = await browser.newPage();
+  await page.goto(url);
+  await page.waitForTimeout(3000);
 
-async function obtenerResultados(url, nombresJugadores) {
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-    await page.evaluate(() => {
-      const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
-        el.textContent.includes('Race Mode')
-      );
-      if (tabs.length > 0) tabs[0].click();
-    });
-
-    await page.waitForSelector('tbody tr', { timeout: 10000 });
-
-    const pista = await page.$eval('div.container h3', el => el.innerText.trim());
-    const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
-
-    const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
-      return filas
-        .map(fila => {
-          const celdas = fila.querySelectorAll('td');
-          const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
-          const jugador = celdas[2]?.innerText.trim();
-          if (jugadores.includes(jugador)) {
-            return { tiempo, jugador };
-          }
-          return null;
-        })
-        .filter(Boolean);
-    }, nombresJugadores);
-
+    await page.waitForSelector('tbody tr', { timeout: 20000 });
+  } catch {
+    console.warn('Timeout: no se encontraron resultados en', url);
     await browser.close();
-    return { pista, escenario, resultados };
-  } catch (e) {
-    console.error('Scraping error:', e);
-    return { pista: 'Error', escenario: 'Error', resultados: [] };
+    return null;
   }
+
+  const resultados = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    return rows.map(row => {
+      const cols = row.querySelectorAll('td');
+      return {
+        jugador: cols[1].textContent.trim(),
+        tiempo: parseFloat(cols[2].textContent.trim().replace('s', '')) || 0
+      };
+    });
+  });
+
+  await browser.close();
+  return resultados;
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
-  const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
-  const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
+  const urls = await obtenerURLsDesdeConfiguracion();
 
-  const respuesta = [];
+  if (urls.length !== 2) {
+    return res.status(500).json({ error: 'No se pudieron obtener los tracks configurados.' });
+  }
 
-  for (const url of urls) {
-    const { pista, escenario, resultados } = await obtenerResultados(url, Object.keys(nombreToId));
+  try {
+    const resultadosFinales = [];
 
-    const resultadosConId = resultados.map(r => ({
-      ...r,
-      jugador_id: nombreToId[r.jugador]
-    }));
+    for (let i = 0; i < urls.length; i++) {
+      const resultados = await obtenerResultados(urls[i]);
 
-    const comparados = [];
+      if (!resultados || resultados.length === 0) continue;
 
-    for (const r of resultadosConId) {
-      const { data: hist } = await supabase
-        .from('mejores_tiempos')
-        .select('mejor_tiempo')
-        .eq('jugador_id', r.jugador_id)
-        .eq('pista', pista)
-        .eq('escenario', escenario)
-        .limit(1)
-        .maybeSingle();
+      const escenario = urls[i].split('/')[4] || `Track${i + 1}`;
+      const pista = urls[i].split('/')[5] || 'Desconocida';
 
-      const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
-      const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
+      // Simular mejora (ficticia, solo para demo)
+      const resultadosConMejora = resultados.map((r, idx) => ({
+        ...r,
+        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // demo
+      }));
 
-      comparados.push({
-        jugador: r.jugador,
-        tiempo: r.tiempo,
-        mejora
-      });
-
-      if (!hist || r.tiempo < hist.mejor_tiempo) {
-        await supabase.from('mejores_tiempos').upsert({
-          jugador_id: r.jugador_id,
-          pista,
-          escenario,
-          mejor_tiempo: r.tiempo,
-          ultima_actualizacion: new Date().toISOString()
-        }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
-      }
-
-      await supabase.from('resultados').insert({
-        jugador_id: r.jugador_id,
-        semana,
-        pista,
+      resultadosFinales.push({
         escenario,
-        tiempo: r.tiempo
+        pista,
+        resultados: resultadosConMejora
       });
     }
 
-    comparados.sort((a, b) => a.tiempo - b.tiempo);
-    respuesta.push({ pista, escenario, resultados: comparados });
-  }
+    res.json(resultadosFinales);
 
-  res.json(respuesta);
+  } catch (err) {
+    console.error('Scraping error:', err);
+    res.status(500).json({ error: 'Error al obtener los resultados' });
+  }
 });
 
 export default router;
