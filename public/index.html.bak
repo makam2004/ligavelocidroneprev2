@@ -6,6 +6,11 @@
   <link rel="stylesheet" href="main.css" />
 </head>
 <body>
+  <!-- Barra de progreso -->
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+
   <!-- Barra superior -->
   <div class="top-bar">
     <div class="left">
@@ -62,6 +67,7 @@
     <div id="mensajeAlta" style="margin-top:10px;color:lightgreen;"></div>
   </div>
 
+  <!-- Scripts -->
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   <script src="main.js" defer></script>
 </body>
