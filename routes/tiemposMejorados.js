@@ -53,14 +53,20 @@ async function obtenerResultados(url) {
     return rows.map(row => {
       const cols = row.querySelectorAll('td');
       return {
-        jugador: cols[1].textContent.trim(),
-        tiempo: parseFloat(cols[2].textContent.trim().replace('s', '')) || 0
+        jugador: cols[0]?.textContent?.trim() || '',
+        tiempo: parseFloat(cols[2]?.textContent?.replace('s', '').trim()) || 0
       };
     });
   });
 
+  const { escenario, pista } = await page.evaluate(() => {
+    const h1 = document.querySelector('h1');
+    const [escenario, pista] = h1 ? h1.textContent.split(' - ') : ['Desconocido', 'Desconocido'];
+    return { escenario: escenario?.trim(), pista: pista?.trim() };
+  });
+
   await browser.close();
-  return resultados;
+  return { escenario, pista, resultados };
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
@@ -75,28 +81,23 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     const resultadosFinales = [];
 
     for (let i = 0; i < urls.length; i++) {
-      const resultados = await obtenerResultados(urls[i]);
+      const datos = await obtenerResultados(urls[i]);
 
-      if (!resultados || resultados.length === 0) continue;
+      if (!datos || !datos.resultados || datos.resultados.length === 0) continue;
 
-      const escenario = urls[i].split('/')[4] || `Track${i + 1}`;
-      const pista = urls[i].split('/')[5] || 'Desconocida';
-
-      // Simular mejora (ficticia, solo para demo)
-      const resultadosConMejora = resultados.map((r, idx) => ({
+      const resultadosConMejora = datos.resultados.map((r, idx) => ({
         ...r,
-        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // demo
+        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // aleatorio para demo
       }));
 
       resultadosFinales.push({
-        escenario,
-        pista,
+        escenario: datos.escenario,
+        pista: datos.pista,
         resultados: resultadosConMejora
       });
     }
 
     res.json(resultadosFinales);
-
   } catch (err) {
     console.error('Scraping error:', err);
     res.status(500).json({ error: 'Error al obtener los resultados' });
