@@ -1,13 +1,28 @@
 import express from 'express';
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 import supabase from '../supabaseClient.js';
 
 const router = express.Router();
 
-const urls = [
-  'https://www.velocidrone.com/leaderboard/33/1527/All',
-  'https://www.velocidrone.com/leaderboard/16/1795/All'
-];
+async function obtenerURLsDesdeConfiguracion() {
+  const { data, error } = await supabase
+    .from('configuracion')
+    .select('track1_id, track2_id')
+    .order('fecha_actualizacion', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error('Error al obtener configuración de tracks:', error);
+    return [];
+  }
+
+  return [
+    `https://www.velocidrone.com/leaderboard/${data.track1_id}/All`,
+    `https://www.velocidrone.com/leaderboard/${data.track2_id}/All`
+  ];
+}
+
 
 function calcularSemanaActual() {
   const fecha = new Date();
@@ -18,8 +33,9 @@ function calcularSemanaActual() {
 
 async function obtenerResultados(url, nombresJugadores) {
   try {
-    const browser = await chromium.launch({
+    const browser = await puppeteer.launch({
       headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();

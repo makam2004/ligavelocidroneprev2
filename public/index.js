@@ -1,7 +1,11 @@
 import express from 'express';
+import basicAuth from 'express-basic-auth';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import adminRoutes from './routes/admin.js';
 import tiemposMejorados from './routes/tiemposMejorados.js';
+import supabase from './supabaseClient.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,12 +13,27 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Servir el contenido de la carpeta public/
-app.use(express.static(path.join(__dirname, 'public')));
-import supabase from './supabaseClient.js';
-
+// Middleware
 app.use(express.json());
 
+// Servir archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Protección de acceso a /admin
+const adminAuth = basicAuth({
+  users: { [process.env.ADMIN_USER]: process.env.ADMIN_PASS },
+  challenge: true,
+  unauthorizedResponse: 'Acceso no autorizado'
+});
+
+app.get('/admin', adminAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// API protegida para cambiar tracks y reiniciar ranking semanal
+app.use(adminRoutes);
+
+// Alta de jugador
 app.post('/api/alta-jugador', async (req, res) => {
   const { nombre } = req.body;
 
@@ -44,7 +63,7 @@ app.post('/api/alta-jugador', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Ruta que expone los tiempos mejorados
+// API pública de resultados
 app.use(tiemposMejorados);
 
 // Iniciar servidor
