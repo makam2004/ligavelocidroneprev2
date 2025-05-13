@@ -30,7 +30,7 @@ async function obtenerURLsDesdeConfiguracion() {
   ];
 }
 
-async function obtenerResultados(url) {
+async function obtenerResultados(url, jugadoresPermitidos) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -38,75 +38,113 @@ async function obtenerResultados(url) {
 
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await new Promise(resolve => setTimeout(resolve, 3000));
 
-  try {
-    await page.waitForSelector('tbody tr', { timeout: 15000 });
-  } catch {
-    console.warn('Timeout en la página:', url);
-    await browser.close();
-    return null;
-  }
-
-  // ✅ Extraer resultados reales (jugador y tiempo)
-  const resultados = await page.evaluate(() => {
-    const filas = Array.from(document.querySelectorAll('tbody tr'));
-    return filas.map(fila => {
-      const celdas = fila.querySelectorAll('td');
-      return {
-        jugador: celdas[1]?.textContent?.trim() || 'Desconocido',
-        tiempo: parseFloat((celdas[2]?.textContent || '0').replace('s', '').trim()) || 0
-      };
-    });
+  // Clic en la pestaña "Race Mode: Single Class"
+  await page.evaluate(() => {
+    const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
+      el.textContent.includes('Race Mode: Single Class')
+    );
+    if (tabs.length > 0) tabs[0].click();
   });
 
-  // ✅ Extraer escenario y pista desde <h3>
-  const encabezado = await page.evaluate(() => {
-    const h3 = document.querySelector('h3');
-    if (!h3 || !h3.textContent.includes(' - ')) {
-      return { escenario: 'Desconocido', pista: 'Desconocido' };
-    }
-    const [escenario, pista] = h3.textContent.split(' - ');
-    return { escenario: escenario.trim(), pista: pista.trim() };
-  });
+  // Esperar a que se cargue la tabla
+  await page.waitForSelector('tbody tr', { timeout: 10000 });
+
+  // Obtener pista y escenario
+  const pista = await page.$eval('div.container h3', el => el.innerText.trim());
+  const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
+
+  // Leer tabla filtrando jugadores
+  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
+    return filas
+      .map(fila => {
+        const celdas = fila.querySelectorAll('td');
+        const nombre = celdas[1]?.innerText.trim(); // columna "Pilot"
+        const tiempoStr = celdas[2]?.innerText.trim(); // columna "Time"
+        const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', ''));
+
+        if (jugadores.includes(nombre)) {
+          return { jugador: nombre, tiempo };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }, jugadoresPermitidos);
 
   await browser.close();
-  return { ...encabezado, resultados };
+
+  // Ordenar por tiempo ascendente
+  resultados.sort((a, b) => a.tiempo - b.tiempo);
+
+  return { pista, escenario, resultados };
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
+
+  const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+  const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
+  const nombresPermitidos = Object.keys(nombreToId);
+
   const urls = await obtenerURLsDesdeConfiguracion();
+  if (!urls.length) return res.status(500).json({ error: 'No hay configuración de tracks.' });
 
-  if (urls.length !== 2) {
-    return res.status(500).json({ error: 'No se pudieron obtener los tracks configurados.' });
-  }
+  const respuesta = [];
 
-  try {
-    const resultadosFinales = [];
+  for (const url of urls) {
+    const { pista, escenario, resultados } = await obtenerResultados(url, nombresPermitidos);
 
-    for (let i = 0; i < urls.length; i++) {
-      const datos = await obtenerResultados(urls[i]);
+    const resultadosConId = resultados.map(r => ({
+      ...r,
+      jugador_id: nombreToId[r.jugador]
+    }));
 
-      if (!datos || !datos.resultados || datos.resultados.length === 0) continue;
+    const comparados = [];
 
-      const resultadosConMejora = datos.resultados.map((r, idx) => ({
-        ...r,
-        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // demo
-      }));
+    for (const r of resultadosConId) {
+      // Consulta de mejor tiempo previo
+      const { data: hist } = await supabase
+        .from('mejores_tiempos')
+        .select('mejor_tiempo')
+        .eq('jugador_id', r.jugador_id)
+        .eq('pista', pista)
+        .eq('escenario', escenario)
+        .maybeSingle();
 
-      resultadosFinales.push({
-        escenario: datos.escenario,
-        pista: datos.pista,
-        resultados: resultadosConMejora
+      const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
+      const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
+
+      comparados.push({
+        jugador: r.jugador,
+        tiempo: r.tiempo,
+        mejora
+      });
+
+      // Actualización en mejores_tiempos
+      if (!hist || r.tiempo < hist.mejor_tiempo) {
+        await supabase.from('mejores_tiempos').upsert({
+          jugador_id: r.jugador_id,
+          pista,
+          escenario,
+          mejor_tiempo: r.tiempo,
+          ultima_actualizacion: new Date().toISOString()
+        }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
+      }
+
+      // Registro de resultado semanal
+      await supabase.from('resultados').insert({
+        jugador_id: r.jugador_id,
+        semana,
+        pista,
+        escenario,
+        tiempo: r.tiempo
       });
     }
 
-    res.json(resultadosFinales);
-  } catch (err) {
-    console.error('Scraping error:', err);
-    res.status(500).json({ error: 'Error al obtener los resultados' });
+    respuesta.push({ pista, escenario, resultados: comparados });
   }
+
+  res.json(respuesta);
 });
 
 export default router;
