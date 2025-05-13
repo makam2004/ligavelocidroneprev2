@@ -11,5 +11,6 @@
     "puppeteer": "^22.8.2",
     "@supabase/supabase-js": "^2.39.4",
     "node-fetch": "^3.3.2"
+	"express-basic-auth": "^1.2.0"
   }
 }
