@@ -30,7 +30,7 @@ async function obtenerURLsDesdeConfiguracion() {
   ];
 }
 
-async function obtenerResultados(url, jugadoresPermitidos) {
+async function obtenerResultados(url) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -39,7 +39,7 @@ async function obtenerResultados(url, jugadoresPermitidos) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Clic en la pestaña "Race Mode: Single Class"
+  // Hacer clic en pestaña "Race Mode: Single Class"
   await page.evaluate(() => {
     const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
       el.textContent.includes('Race Mode: Single Class')
@@ -47,33 +47,29 @@ async function obtenerResultados(url, jugadoresPermitidos) {
     if (tabs.length > 0) tabs[0].click();
   });
 
-  // Esperar a que se cargue la tabla
+  // Esperar a que cargue la tabla después del clic
   await page.waitForSelector('tbody tr', { timeout: 10000 });
 
-  // Obtener pista y escenario
+  // Extraer nombres de escenario y pista
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  // Leer tabla filtrando jugadores
-  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
-    return filas
-      .map(fila => {
-        const celdas = fila.querySelectorAll('td');
-        const nombre = celdas[1]?.innerText.trim(); // columna "Pilot"
-        const tiempoStr = celdas[2]?.innerText.trim(); // columna "Time"
-        const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', ''));
+  // Leer los resultados
+  const resultados = await page.$$eval('tbody tr', filas => {
+    return filas.map(fila => {
+      const celdas = fila.querySelectorAll('td');
+      const jugador = celdas[3]?.innerText.trim(); // columna Player (índice 3)
+      const tiempoStr = celdas[4]?.innerText.trim(); // columna Time (índice 4)
+      const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', ''));
 
-        if (jugadores.includes(nombre)) {
-          return { jugador: nombre, tiempo };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  }, jugadoresPermitidos);
+      return { jugador, tiempo };
+    });
+  });
 
   await browser.close();
 
-  // Ordenar por tiempo ascendente
+  console.log(`[Scraping] ${resultados.length} pilotos leídos de ${pista} - ${escenario}`);
+
   resultados.sort((a, b) => a.tiempo - b.tiempo);
 
   return { pista, escenario, resultados };
@@ -82,9 +78,10 @@ async function obtenerResultados(url, jugadoresPermitidos) {
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
 
-  const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
-  const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
-  const nombresPermitidos = Object.keys(nombreToId);
+  // 🔁 Comentado el filtro temporal para depuración
+  // const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+  // const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
+  // const nombresPermitidos = Object.keys(nombreToId);
 
   const urls = await obtenerURLsDesdeConfiguracion();
   if (!urls.length) return res.status(500).json({ error: 'No hay configuración de tracks.' });
@@ -92,54 +89,13 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   const respuesta = [];
 
   for (const url of urls) {
-    const { pista, escenario, resultados } = await obtenerResultados(url, nombresPermitidos);
+    const { pista, escenario, resultados } = await obtenerResultados(url);
 
-    const resultadosConId = resultados.map(r => ({
-      ...r,
-      jugador_id: nombreToId[r.jugador]
+    const comparados = resultados.map((r, i) => ({
+      jugador: r.jugador,
+      tiempo: r.tiempo,
+      mejora: i === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // temporal
     }));
-
-    const comparados = [];
-
-    for (const r of resultadosConId) {
-      // Consulta de mejor tiempo previo
-      const { data: hist } = await supabase
-        .from('mejores_tiempos')
-        .select('mejor_tiempo')
-        .eq('jugador_id', r.jugador_id)
-        .eq('pista', pista)
-        .eq('escenario', escenario)
-        .maybeSingle();
-
-      const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
-      const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
-
-      comparados.push({
-        jugador: r.jugador,
-        tiempo: r.tiempo,
-        mejora
-      });
-
-      // Actualización en mejores_tiempos
-      if (!hist || r.tiempo < hist.mejor_tiempo) {
-        await supabase.from('mejores_tiempos').upsert({
-          jugador_id: r.jugador_id,
-          pista,
-          escenario,
-          mejor_tiempo: r.tiempo,
-          ultima_actualizacion: new Date().toISOString()
-        }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
-      }
-
-      // Registro de resultado semanal
-      await supabase.from('resultados').insert({
-        jugador_id: r.jugador_id,
-        semana,
-        pista,
-        escenario,
-        tiempo: r.tiempo
-      });
-    }
 
     respuesta.push({ pista, escenario, resultados: comparados });
   }
