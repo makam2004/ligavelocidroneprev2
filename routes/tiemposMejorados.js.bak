@@ -37,36 +37,39 @@ async function obtenerResultados(url) {
   });
 
   const page = await browser.newPage();
-  await page.goto(url);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await new Promise(resolve => setTimeout(resolve, 3000));
 
   try {
-    await page.waitForSelector('tbody tr', { timeout: 20000 });
+    await page.waitForSelector('tbody tr', { timeout: 15000 });
   } catch {
-    console.warn('Timeout: no se encontraron resultados en', url);
+    console.warn('Timeout en la página:', url);
     await browser.close();
     return null;
   }
 
   const resultados = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('tbody tr'));
-    return rows.map(row => {
-      const cols = row.querySelectorAll('td');
+    const filas = Array.from(document.querySelectorAll('tbody tr'));
+    return filas.map(fila => {
+      const celdas = fila.querySelectorAll('td');
       return {
-        jugador: cols[0]?.textContent?.trim() || '',
-        tiempo: parseFloat(cols[2]?.textContent?.replace('s', '').trim()) || 0
+        jugador: celdas[1]?.textContent?.trim() || 'Desconocido',
+        tiempo: parseFloat((celdas[2]?.textContent || '0').replace('s', '').trim()) || 0
       };
     });
   });
 
-  const { escenario, pista } = await page.evaluate(() => {
+  const encabezado = await page.evaluate(() => {
     const h1 = document.querySelector('h1');
-    const [escenario, pista] = h1 ? h1.textContent.split(' - ') : ['Desconocido', 'Desconocido'];
-    return { escenario: escenario?.trim(), pista: pista?.trim() };
+    if (!h1 || !h1.textContent.includes(' - ')) {
+      return { escenario: 'Desconocido', pista: 'Desconocido' };
+    }
+    const [escenario, pista] = h1.textContent.split(' - ');
+    return { escenario: escenario.trim(), pista: pista.trim() };
   });
 
   await browser.close();
-  return { escenario, pista, resultados };
+  return { ...encabezado, resultados };
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
@@ -87,7 +90,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
 
       const resultadosConMejora = datos.resultados.map((r, idx) => ({
         ...r,
-        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // aleatorio para demo
+        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // simulación demo
       }));
 
       resultadosFinales.push({

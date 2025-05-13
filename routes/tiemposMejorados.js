@@ -48,6 +48,7 @@ async function obtenerResultados(url) {
     return null;
   }
 
+  // ✅ Extraer resultados reales (jugador y tiempo)
   const resultados = await page.evaluate(() => {
     const filas = Array.from(document.querySelectorAll('tbody tr'));
     return filas.map(fila => {
@@ -59,12 +60,13 @@ async function obtenerResultados(url) {
     });
   });
 
+  // ✅ Extraer escenario y pista desde <h3>
   const encabezado = await page.evaluate(() => {
-    const h1 = document.querySelector('h1');
-    if (!h1 || !h1.textContent.includes(' - ')) {
+    const h3 = document.querySelector('h3');
+    if (!h3 || !h3.textContent.includes(' - ')) {
       return { escenario: 'Desconocido', pista: 'Desconocido' };
     }
-    const [escenario, pista] = h1.textContent.split(' - ');
+    const [escenario, pista] = h3.textContent.split(' - ');
     return { escenario: escenario.trim(), pista: pista.trim() };
   });
 
@@ -90,7 +92,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
 
       const resultadosConMejora = datos.resultados.map((r, idx) => ({
         ...r,
-        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // simulación demo
+        mejora: idx === 0 ? 0 : parseFloat((Math.random() * 2 - 1).toFixed(2)) // demo
       }));
 
       resultadosFinales.push({
