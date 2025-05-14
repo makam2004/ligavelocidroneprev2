@@ -26,7 +26,8 @@ body {
 
 h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 32px;
+  font-weight: bold;
 }
 
 .container {
@@ -71,6 +72,7 @@ th, td {
 .mejorado {
   color: lightgreen;
 }
+
 .empeorado {
   color: orange;
 }

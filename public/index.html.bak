@@ -2,66 +2,46 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>LIGA VELOCIDRONE</title>
-  <link rel="stylesheet" href="main.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LIGA VELOCIDRONE - Semana 20</title>
+  <link rel="stylesheet" href="main.css">
 </head>
 <body>
-  <!-- Barra de progreso -->
-  <div id="progressBarContainer">
-    <div id="progressBar"></div>
-  </div>
 
-  <!-- Barra superior -->
   <div class="top-bar">
-    <div class="left">
+    <div class="top-left">
       <button id="btnReglamento">📘 Reglamento</button>
     </div>
-    <div class="center">
-      <h1 id="titulo">LIGA VELOCIDRONE</h1>
+    <div class="top-center">
+      <h1>LIGA VELOCIDRONE - Semana 20</h1>
     </div>
-<div class="right">
-  <a href="https://t.me/ligasemanalvelocidron" target="_blank" title="Canal de Telegram">
-    <img src="https://telegram.org/img/t_logo.png" alt="Telegram" width="32" height="32" style="margin-right: 12px; vertical-align: middle;">
-  </a>
-  <button id="btnAlta">➕ Alta de Piloto</button>
-</div>
+    <div class="top-right">
+      <button id="btnAlta">➕ Alta de Piloto</button>
+    </div>
   </div>
 
-  <!-- Fondo oscuro -->
-  <div class="overlay" id="overlay"></div>
-
-  <!-- Contenedor principal -->
   <div class="container">
-    <!-- Tracks -->
-    <div class="track-container">
+    <div class="card-row">
       <div id="track1" class="card"></div>
       <div id="track2" class="card"></div>
     </div>
 
-    <!-- Rankings -->
-    <div class="ranking-container">
-      <div id="rankingSemanal" class="card">
-        <h2>Ranking Semanal</h2>
-        <div id="tablaSemanal"></div>
-      </div>
-      <div id="rankingAnual" class="card">
-        <h2>Ranking Anual</h2>
-        <div id="tablaAnual">Próximamente...</div>
-      </div>
+    <div class="card-row">
+      <div id="rankingSemanal" class="card"></div>
+      <div id="rankingAnual" class="card"></div>
     </div>
   </div>
 
-  <!-- Popup Reglamento -->
-  <div id="popup">
+  <!-- Popups -->
+  <div id="popup" class="popup" style="display:none;">
     <h3>Reglamento</h3>
-    <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
-    <div id="popupTexto"></div>
+    <button onclick="cerrarPopups()">✖</button>
+    <div id="popupTexto">Aquí irá el reglamento leído desde un archivo o definido manualmente.</div>
   </div>
 
-  <!-- Popup Alta -->
-  <div id="popupAlta">
+  <div id="popupAlta" class="popup" style="display:none;">
     <h3>Alta de piloto</h3>
-    <button onclick="cerrarPopups()" style="float:right; background:#ff4444;">✖</button>
+    <button onclick="cerrarPopups()">✖</button>
     <form onsubmit="registrarJugador(event)">
       <input id="nombreJugador" type="text" placeholder="Nombre del Piloto en Velocidrone" required style="width:100%;padding:10px;margin-top:10px;" />
       <div class="h-captcha" data-sitekey="8ac62e84-891a-4d2e-b8a0-e39aabb4b246"></div>
@@ -70,7 +50,6 @@
     <div id="mensajeAlta" style="margin-top:10px;color:lightgreen;"></div>
   </div>
 
-  <!-- Scripts -->
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   <script src="main.js" defer></script>
 </body>
