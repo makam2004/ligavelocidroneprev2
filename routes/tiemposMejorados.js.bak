@@ -55,8 +55,8 @@ async function obtenerResultados(url) {
   const resultados = await page.$$eval('tbody tr', filas => {
     return filas.map(fila => {
       const celdas = fila.querySelectorAll('td');
+      const jugador = celdas[4]?.innerText.trim();  // ✅ Player
       const tiempoStr = celdas[1]?.innerText.trim(); // ✅ Time
-      const jugador = celdas[4]?.innerText.trim();   // ✅ Player
       const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', '')) || 0;
       return { jugador, tiempo };
     });
@@ -80,7 +80,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   for (const url of urls) {
     const { pista, escenario, resultados } = await obtenerResultados(url);
 
-    const comparados = resultados.map((r, i) => ({
+    const comparados = resultados.map(r => ({
       jugador: r.jugador,
       tiempo: r.tiempo,
       mejora: '–'

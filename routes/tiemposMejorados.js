@@ -39,33 +39,28 @@ async function obtenerResultados(url) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Activar pestaña "Race Mode: Single Class"
-  await page.evaluate(() => {
-    const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
-      el.textContent.includes('Race Mode: Single Class')
-    );
-    if (tabs.length > 0) tabs[0].click();
-  });
-
   await page.waitForSelector('tbody tr', { timeout: 10000 });
 
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
   const resultados = await page.$$eval('tbody tr', filas => {
-    return filas.map(fila => {
+    return Array.from(filas).slice(1).map(fila => {
       const celdas = fila.querySelectorAll('td');
-      const jugador = celdas[4]?.innerText.trim();  // ✅ Player
-      const tiempoStr = celdas[1]?.innerText.trim(); // ✅ Time
-      const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', '')) || 0;
+      const tiempo = celdas[1] ? celdas[1].innerText.trim() : "Error";     // "Time" → 2ª columna
+      const jugador = celdas[2] ? celdas[2].innerText.trim() : "Error";   // "Player" → 3ª columna
       return { jugador, tiempo };
     });
   });
 
   await browser.close();
 
-  console.log(`[Scraping] ${resultados.length} pilotos leídos de ${pista} - ${escenario}`);
-  resultados.sort((a, b) => a.tiempo - b.tiempo);
+  resultados.sort((a, b) => {
+    const tA = a.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
+    const tB = b.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
+    return tA - tB;
+  });
+
   return { pista, escenario, resultados };
 }
 
@@ -83,7 +78,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     const comparados = resultados.map(r => ({
       jugador: r.jugador,
       tiempo: r.tiempo,
-      mejora: '–'
+      mejora: "–"
     }));
 
     respuesta.push({ pista, escenario, resultados: comparados });
@@ -91,7 +86,6 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
 
   console.log('[API] Resultado final enviado:');
   console.log(JSON.stringify(respuesta, null, 2));
-
   res.json(respuesta);
 });
 
