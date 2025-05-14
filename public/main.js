@@ -54,3 +54,8 @@ async function cargarMejoras() {
     cont1.innerHTML = cont2.innerHTML = "<div style='color:red'>❌ Error al cargar los resultados</div>";
   }
 }
+
+// ⏯️ Asegura que se ejecute al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+  cargarMejoras();
+});
