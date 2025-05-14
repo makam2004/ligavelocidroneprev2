@@ -1,108 +1,65 @@
-import express from 'express';
 import puppeteer from 'puppeteer';
-import supabase from '../supabaseClient.js';
+import fetch from 'node-fetch';
+import { createClient } from '@supabase/supabase-js';
 
-const router = express.Router();
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-function calcularSemanaActual() {
-  const fecha = new Date();
-  const inicio = new Date(fecha.getFullYear(), 0, 1);
-  const dias = Math.floor((fecha - inicio) / 86400000);
-  return Math.ceil((dias + inicio.getDay() + 1) / 7);
-}
+const TRACKS = [
+  { escena: 33, pista: 1527, pestana: "Race Mode: Single Class" },
+  { escena: 16, pista: 1795, pestana: "3 Lap: Single Class" }
+];
 
-async function obtenerURLsDesdeConfiguracion() {
-  const { data, error } = await supabase
-    .from('configuracion')
-    .select('track1_id, track2_id')
-    .order('fecha_actualizacion', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+export default async function obtenerResultados(req, res) {
+  try {
+    const jugadores = await supabase.from('jugadores').select('nombre');
+    const nombresValidos = jugadores.data.map(j => j.nombre.toLowerCase());
 
-  if (error || !data) {
-    console.error('Error al obtener configuración de tracks:', error);
-    return [];
-  }
-
-  return [
-    `https://www.velocidrone.com/leaderboard/${data.track1_id}/All`,
-    `https://www.velocidrone.com/leaderboard/${data.track2_id}/All`
-  ];
-}
-
-async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = false) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-  if (forzarRaceMode) {
-    await page.evaluate(() => {
-      const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
-        el.textContent.includes('Race Mode: Single Class')
-      );
-      if (tabs.length > 0) tabs[0].click();
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox'],
+      headless: true
     });
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const resultados = [];
+
+    for (const track of TRACKS) {
+      const url = `https://www.velocidrone.com/leaderboard/${track.escena}/${track.pista}/All`;
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: 'networkidle2' });
+
+      // Selecciona la pestaña correspondiente
+      const pestanas = await page.$$('.leaderboard-category-tab');
+      const textoTabs = await Promise.all(pestanas.map(el => el.evaluate(n => n.textContent.trim())));
+      const indexTab = textoTabs.findIndex(t => t.includes(track.pestana));
+      if (indexTab >= 0) await pestanas[indexTab].click();
+
+      await page.waitForSelector('table tbody tr');
+
+      const datos = await page.evaluate(() => {
+        const filas = Array.from(document.querySelectorAll("table tbody tr"));
+        return filas.map(f => {
+          const celdas = f.querySelectorAll("td");
+          const player = celdas[2]?.innerText?.trim() || "";
+          const time = parseFloat(celdas[1]?.innerText?.trim()) || 0;
+          return { jugador: player, tiempo: time, mejora: "-" };
+        });
+      });
+
+      // Filtrar solo pilotos registrados
+      const filtrados = datos.filter(d => nombresValidos.includes(d.jugador.toLowerCase()));
+
+      resultados.push({
+        escenario: track.escena,
+        pista: track.pista,
+        pestana: track.pestana,
+        resultados: filtrados
+      });
+
+      await page.close();
+    }
+
+    await browser.close();
+    res.json(resultados);
+  } catch (e) {
+    console.error("Scraping error:", e);
+    res.status(500).json({ error: "Error al obtener los resultados" });
   }
-
-  await page.waitForSelector('tbody tr', { timeout: 10000 });
-
-  const pista = await page.$eval('div.container h3', el => el.innerText.trim());
-  const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
-
-  const resultadosCrudos = await page.$$eval('tbody tr', filas => {
-    return Array.from(filas).slice(1).map(fila => {
-      const celdas = fila.querySelectorAll('td');
-      const tiempo = celdas[1]?.innerText.trim();
-      const jugador = celdas[2]?.innerText.trim();
-      return { jugador, tiempo };
-    });
-  });
-
-  await browser.close();
-
-  const resultadosFiltrados = resultadosCrudos.filter(r => jugadoresPermitidos.includes(r.jugador));
-
-  resultadosFiltrados.sort((a, b) => {
-    const tA = a.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
-    const tB = b.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
-    return tA - tB;
-  });
-
-  return { pista, escenario, resultados: resultadosFiltrados };
 }
-
-router.get('/api/tiempos-mejorados', async (_req, res) => {
-  const semana = calcularSemanaActual();
-
-  const { data: jugadoresDB, error } = await supabase.from('jugadores').select('nombre');
-  const jugadoresPermitidos = jugadoresDB?.map(j => j.nombre) || [];
-
-  const urls = await obtenerURLsDesdeConfiguracion();
-  if (urls.length < 2) return res.status(500).json({ error: 'Faltan URLs de tracks' });
-
-  const respuesta = [];
-
-  const resultado1 = await obtenerResultados(urls[0], jugadoresPermitidos, true);  // Race Mode
-  const resultado2 = await obtenerResultados(urls[1], jugadoresPermitidos, false); // 3 Lap
-
-  for (const [i, { pista, escenario, resultados }] of [resultado1, resultado2].entries()) {
-    const pestana = i === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
-    const comparados = resultados.map(r => ({
-      jugador: r.jugador,
-      tiempo: parseFloat(r.tiempo),
-      mejora: 0
-    }));
-    respuesta.push({ pista, escenario, pestana, resultados: comparados });
-  }
-
-  console.log("[API] Resultado final enviado:\n", JSON.stringify(respuesta, null, 2)); // 🪵 Log completo
-
-  res.json(respuesta);
-});
-
-export default router;
