@@ -23,6 +23,7 @@ body {
 .card h3 {
   margin-top: 5px;
   margin-bottom: 10px;
+  font-size: 20px;
 }
 
 table {
@@ -45,11 +46,15 @@ th, td {
   color: orange;
 }
 
+/* ✅ Estilo del título de pestaña */
 .nombre-pestana {
   font-weight: bold;
   color: red;
+  font-size: 20px;
+  margin-bottom: 8px;
 }
 
+/* ✅ Botones principales */
 button {
   padding: 6px 12px;
   margin: 5px;
@@ -57,6 +62,7 @@ button {
   cursor: pointer;
 }
 
+/* ✅ Popups */
 .popup {
   position: fixed;
   top: 10%;
