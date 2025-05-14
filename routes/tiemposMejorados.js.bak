@@ -30,7 +30,7 @@ async function obtenerURLsDesdeConfiguracion() {
   ];
 }
 
-async function obtenerResultados(url) {
+async function obtenerResultados(url, jugadoresPermitidos) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -44,14 +44,14 @@ async function obtenerResultados(url) {
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  const resultados = await page.$$eval('tbody tr', filas => {
+  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
     return Array.from(filas).slice(1).map(fila => {
       const celdas = fila.querySelectorAll('td');
-      const tiempo = celdas[1] ? celdas[1].innerText.trim() : "Error";     // "Time" → 2ª columna
-      const jugador = celdas[2] ? celdas[2].innerText.trim() : "Error";   // "Player" → 3ª columna
+      const tiempo = celdas[1]?.innerText.trim();
+      const jugador = celdas[2]?.innerText.trim();
       return { jugador, tiempo };
-    });
-  });
+    }).filter(r => jugadores.includes(r.jugador));
+  }, jugadoresPermitidos);
 
   await browser.close();
 
@@ -66,14 +66,18 @@ async function obtenerResultados(url) {
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
-  const urls = await obtenerURLsDesdeConfiguracion();
 
+  // Recuperar nombres válidos desde Supabase
+  const { data: jugadoresDB, error } = await supabase.from('jugadores').select('nombre');
+  const jugadoresPermitidos = jugadoresDB?.map(j => j.nombre) || [];
+
+  const urls = await obtenerURLsDesdeConfiguracion();
   if (!urls.length) return res.status(500).json({ error: 'No hay configuración de tracks.' });
 
   const respuesta = [];
 
   for (const url of urls) {
-    const { pista, escenario, resultados } = await obtenerResultados(url);
+    const { pista, escenario, resultados } = await obtenerResultados(url, jugadoresPermitidos);
 
     const comparados = resultados.map(r => ({
       jugador: r.jugador,
