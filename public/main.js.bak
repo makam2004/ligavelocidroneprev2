@@ -3,6 +3,16 @@ async function cargarMejoras() {
   const cont2 = document.getElementById("track2");
   cont1.innerHTML = cont2.innerHTML = "";
 
+  const mensajeCargando = document.createElement("div");
+  mensajeCargando.textContent = "⏳ Cargando resultados…";
+  mensajeCargando.style.textAlign = "center";
+  mensajeCargando.style.margin = "20px";
+  mensajeCargando.style.color = "white";
+  mensajeCargando.id = "mensaje-carga";
+
+  cont1.appendChild(mensajeCargando);
+  cont2.appendChild(mensajeCargando.cloneNode(true));
+
   try {
     console.log("▶️ Solicitando resultados...");
     const res = await fetch("/api/tiempos-mejorados");
@@ -15,9 +25,10 @@ async function cargarMejoras() {
     const puntos = [10, 8, 6, 4, 2];
     const semanal = {};
 
-    data.forEach((pista, index) => {
-      console.log(`📍 Procesando pista ${index + 1}:`, pista);
+    cont1.innerHTML = "";
+    cont2.innerHTML = "";
 
+    data.forEach((pista, index) => {
       const container = index === 0 ? cont1 : cont2;
 
       const pestana = document.createElement('div');
@@ -54,7 +65,8 @@ async function cargarMejoras() {
       container.appendChild(tabla);
     });
 
-    mostrarRanking(semanal);
+    // Línea desactivada hasta implementar el ranking
+    // mostrarRanking(semanal);
 
   } catch (err) {
     console.error("❌ Error capturado en cargarMejoras:", err);

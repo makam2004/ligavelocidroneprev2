@@ -25,6 +25,7 @@ body {
 .top-bar .right {
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .top-bar .center {
@@ -45,6 +46,12 @@ body {
 
 .top-bar button:hover {
   background-color: #2196f3;
+}
+
+.top-bar .right img {
+  filter: invert(100%);
+  cursor: pointer;
+  margin-right: 8px;
 }
 
 /* Barra de progreso */
