@@ -39,7 +39,7 @@ async function obtenerResultados(url) {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  // Clic en pestaña "Race Mode: Single Class"
+  // Activar pestaña "Race Mode: Single Class"
   await page.evaluate(() => {
     const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
       el.textContent.includes('Race Mode: Single Class')
@@ -55,8 +55,8 @@ async function obtenerResultados(url) {
   const resultados = await page.$$eval('tbody tr', filas => {
     return filas.map(fila => {
       const celdas = fila.querySelectorAll('td');
-      const jugador = celdas[4]?.innerText.trim(); // ✅ Player
-      const tiempoStr = celdas[1]?.innerText.trim(); // ✅ Time
+      const jugador = celdas[3]?.innerText.trim(); // ✅ Player
+      const tiempoStr = celdas[4]?.innerText.trim(); // ✅ Time
       const tiempo = parseFloat(tiempoStr.replace(',', '.').replace('s', '')) || 0;
       return { jugador, tiempo };
     });
@@ -65,9 +65,7 @@ async function obtenerResultados(url) {
   await browser.close();
 
   console.log(`[Scraping] ${resultados.length} pilotos leídos de ${pista} - ${escenario}`);
-
   resultados.sort((a, b) => a.tiempo - b.tiempo);
-
   return { pista, escenario, resultados };
 }
 
