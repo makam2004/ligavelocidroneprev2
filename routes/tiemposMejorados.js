@@ -40,14 +40,14 @@ async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = fals
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
   if (forzarRaceMode) {
-    // Hacer clic en la pestaña "Race Mode: Single Class"
     await page.evaluate(() => {
       const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
         el.textContent.includes('Race Mode: Single Class')
       );
       if (tabs.length > 0) tabs[0].click();
     });
-    await page.waitForTimeout(1000); // Espera tras el clic para cargar tabla
+    // 🛠️ Sustituimos waitForTimeout por setTimeout correcto
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   await page.waitForSelector('tbody tr', { timeout: 10000 });
@@ -69,8 +69,8 @@ async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = fals
   const resultadosFiltrados = resultadosCrudos.filter(r => jugadoresPermitidos.includes(r.jugador));
 
   resultadosFiltrados.sort((a, b) => {
-    const tA = a.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
-    const tB = b.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
+    const tA = r.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
+    const tB = r.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
     return tA - tB;
   });
 
@@ -89,7 +89,7 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   const respuesta = [];
 
   const resultado1 = await obtenerResultados(urls[0], jugadoresPermitidos, true);  // Race Mode
-  const resultado2 = await obtenerResultados(urls[1], jugadoresPermitidos, false); // 3 Lap (sin cambiar)
+  const resultado2 = await obtenerResultados(urls[1], jugadoresPermitidos, false); // 3 Lap
 
   for (const { pista, escenario, resultados } of [resultado1, resultado2]) {
     const comparados = resultados.map(r => ({
