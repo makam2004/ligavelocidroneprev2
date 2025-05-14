@@ -71,15 +71,19 @@ async function registrarJugador(event) {
 }
 
 async function cargarMejoras() {
+  const cont1 = document.getElementById('track1');
+  const cont2 = document.getElementById('track2');
+  const progress = document.getElementById('progressBar');
+
+  // Mostrar mensaje inicial y resetear ranking semanal
+  cont1.innerHTML = '<p class="cargando">Leyendo Resultados...</p>';
+  cont2.innerHTML = '<p class="cargando">Leyendo Resultados...</p>';
+  progress.style.width = '25%';
+
   try {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
-
-	const cont1 = document.getElementById('track1');
-	const cont2 = document.getElementById('track2');
-
-	cont1.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
-	cont2.innerHTML = '<p style="text-align:center;">Leyendo Resultados...</p>';
+    progress.style.width = '50%';
 
     const semanal = {};
     const puntos = [10, 8, 6, 4, 2];
@@ -130,8 +134,52 @@ async function cargarMejoras() {
         <tbody>${ranking.join('')}</tbody>
       </table>
     `;
+
+    progress.style.width = '100%';
+    setTimeout(() => { progress.style.width = '0%'; }, 600);
+
   } catch (err) {
     console.error(err);
-    document.getElementById('mejoras').innerHTML = '<p>Error al cargar los resultados.</p>';
+    cont1.innerHTML = '<p class="cargando">Error al cargar resultados.</p>';
+    cont2.innerHTML = '<p class="cargando">Error al cargar resultados.</p>';
+    progress.style.width = '0%';
   }
 }
+
+
+data.forEach((pista, index) => {
+  const container = index === 0 ? cont1 : cont2;
+
+  // NUEVO: crear y mostrar la pestaña usada
+  const pestana = document.createElement('div');
+  pestana.textContent = pista.pestana || '';
+  pestana.className = 'nombre-pestana';
+  container.appendChild(pestana);
+
+  const titulo = document.createElement('h3');
+  titulo.textContent = `${pista.escenario} - ${pista.pista}`;
+  container.appendChild(titulo);
+
+  const tabla = document.createElement('table');
+  tabla.innerHTML = `
+    <thead>
+      <tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th><th>Mejora</th></tr>
+    </thead>
+    <tbody>
+      ${pista.resultados.map((r, i) => {
+        const clase = r.mejora < 0 ? 'mejorado' : r.mejora > 0 ? 'empeorado' : '';
+        const mejora = r.mejora === 0 ? '=' : (r.mejora > 0 ? '+' : '') + r.mejora.toFixed(2) + ' s';
+        const puntosGanados = puntos[i] ?? 1;
+        semanal[r.jugador] = (semanal[r.jugador] || 0) + puntosGanados;
+
+        return `<tr class="${clase}">
+          <td>${i + 1}</td>
+          <td>${r.jugador}</td>
+          <td>${r.tiempo.toFixed(2)} s</td>
+          <td>${mejora}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  `;
+  container.appendChild(tabla);
+});

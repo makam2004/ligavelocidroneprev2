@@ -46,7 +46,7 @@ async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = fals
       );
       if (tabs.length > 0) tabs[0].click();
     });
-    await new Promise(resolve => setTimeout(resolve, 1000)); // correcto en ESM
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   await page.waitForSelector('tbody tr', { timeout: 10000 });
@@ -91,14 +91,16 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   const resultado2 = await obtenerResultados(urls[1], jugadoresPermitidos, false); // 3 Lap
 
   for (const [i, { pista, escenario, resultados }] of [resultado1, resultado2].entries()) {
-    const pestaña = i === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
+    const pestana = i === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
     const comparados = resultados.map(r => ({
       jugador: r.jugador,
-      tiempo: r.tiempo,
-      mejora: "–"
+      tiempo: parseFloat(r.tiempo),
+      mejora: 0
     }));
-    respuesta.push({ pestaña, pista, escenario, resultados: comparados });
+    respuesta.push({ pista, escenario, pestana, resultados: comparados });
   }
+
+  console.log("[API] Resultado final enviado:\n", JSON.stringify(respuesta, null, 2)); // 🪵 Log completo
 
   res.json(respuesta);
 });

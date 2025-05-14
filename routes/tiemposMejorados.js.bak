@@ -46,8 +46,7 @@ async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = fals
       );
       if (tabs.length > 0) tabs[0].click();
     });
-    // 🛠️ Sustituimos waitForTimeout por setTimeout correcto
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000)); // correcto en ESM
   }
 
   await page.waitForSelector('tbody tr', { timeout: 10000 });
@@ -69,8 +68,8 @@ async function obtenerResultados(url, jugadoresPermitidos, forzarRaceMode = fals
   const resultadosFiltrados = resultadosCrudos.filter(r => jugadoresPermitidos.includes(r.jugador));
 
   resultadosFiltrados.sort((a, b) => {
-    const tA = r.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
-    const tB = r.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
+    const tA = a.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
+    const tB = b.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
     return tA - tB;
   });
 
@@ -91,13 +90,14 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   const resultado1 = await obtenerResultados(urls[0], jugadoresPermitidos, true);  // Race Mode
   const resultado2 = await obtenerResultados(urls[1], jugadoresPermitidos, false); // 3 Lap
 
-  for (const { pista, escenario, resultados } of [resultado1, resultado2]) {
+  for (const [i, { pista, escenario, resultados }] of [resultado1, resultado2].entries()) {
+    const pestaña = i === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
     const comparados = resultados.map(r => ({
       jugador: r.jugador,
       tiempo: r.tiempo,
       mejora: "–"
     }));
-    respuesta.push({ pista, escenario, resultados: comparados });
+    respuesta.push({ pestaña, pista, escenario, resultados: comparados });
   }
 
   res.json(respuesta);
