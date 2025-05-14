@@ -44,30 +44,41 @@ async function obtenerResultados(url, jugadoresPermitidos) {
   const pista = await page.$eval('div.container h3', el => el.innerText.trim());
   const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
+  const resultadosCrudos = await page.$$eval('tbody tr', filas => {
     return Array.from(filas).slice(1).map(fila => {
       const celdas = fila.querySelectorAll('td');
       const tiempo = celdas[1]?.innerText.trim();
       const jugador = celdas[2]?.innerText.trim();
       return { jugador, tiempo };
-    }).filter(r => jugadores.includes(r.jugador));
-  }, jugadoresPermitidos);
+    });
+  });
 
   await browser.close();
 
-  resultados.sort((a, b) => {
+  console.log(`\n=== [${pista}] ===`);
+  console.log(`🧾 Jugadores en leaderboard:`);
+  console.log(resultadosCrudos.map(r => r.jugador));
+
+  console.log(`\n📄 Jugadores registrados en Supabase:`);
+  console.log(jugadoresPermitidos);
+
+  const resultadosFiltrados = resultadosCrudos.filter(r => jugadoresPermitidos.includes(r.jugador));
+
+  console.log(`\n✅ Coincidencias encontradas:`);
+  console.log(resultadosFiltrados.map(r => r.jugador));
+
+  resultadosFiltrados.sort((a, b) => {
     const tA = a.tiempo === "Error" ? Infinity : parseFloat(a.tiempo);
     const tB = b.tiempo === "Error" ? Infinity : parseFloat(b.tiempo);
     return tA - tB;
   });
 
-  return { pista, escenario, resultados };
+  return { pista, escenario, resultados: resultadosFiltrados };
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
 
-  // Recuperar nombres válidos desde Supabase
   const { data: jugadoresDB, error } = await supabase.from('jugadores').select('nombre');
   const jugadoresPermitidos = jugadoresDB?.map(j => j.nombre) || [];
 
@@ -88,8 +99,6 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
     respuesta.push({ pista, escenario, resultados: comparados });
   }
 
-  console.log('[API] Resultado final enviado:');
-  console.log(JSON.stringify(respuesta, null, 2));
   res.json(respuesta);
 });
 
