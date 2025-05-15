@@ -5,15 +5,15 @@ import { createClient } from '@supabase/supabase-js';
 const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Protección por usuario y contraseña
-router.use(basicAuth({
+// Autenticación solo para rutas /admin
+router.use('/admin', basicAuth({
   users: { [process.env.ADMIN_USER]: process.env.ADMIN_PASS },
   challenge: true
 }));
 
 router.use(express.json());
 
-// Página de administración
+// Página admin
 router.get('/admin', (_req, res) => {
   res.sendFile('admin.html', { root: './public' });
 });

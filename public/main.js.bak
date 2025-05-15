@@ -29,6 +29,7 @@ async function cargarMejoras() {
       const pestana = document.createElement('h3');
       pestana.textContent = pista.pestana;
       pestana.className = "nombre-pestana";
+      pestana.style.color = "red";
       container.appendChild(pestana);
 
       const titulo = document.createElement("h3");
@@ -102,14 +103,19 @@ async function registrarJugador(event) {
   if (!nombre) return;
 
   try {
+    const token = hcaptcha.getResponse();
+    if (!token) throw new Error("Captcha requerido");
+
     const res = await fetch("/api/alta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre })
+      body: JSON.stringify({ nombre, token })
     });
+
     const r = await res.json();
     document.getElementById("mensajeAlta").textContent = r.message || "✅ Alta completada";
   } catch (e) {
+    console.error("Error al registrar:", e);
     document.getElementById("mensajeAlta").textContent = "❌ Error al registrar";
   }
 }
