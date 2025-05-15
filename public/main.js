@@ -4,14 +4,13 @@ async function cargarMejoras() {
   const rankingCont = document.getElementById("rankingSemanal");
   cont1.innerHTML = cont2.innerHTML = rankingCont.innerHTML = "";
 
-  const mensajeCargando = document.createElement("div");
-  mensajeCargando.textContent = "⏳ Cargando resultados…";
-  mensajeCargando.style.textAlign = "center";
-  mensajeCargando.style.margin = "20px";
-  mensajeCargando.style.color = "white";
-
-  cont1.appendChild(mensajeCargando.cloneNode(true));
-  cont2.appendChild(mensajeCargando.cloneNode(true));
+  const mensaje = document.createElement("div");
+  mensaje.textContent = "⏳ Cargando resultados…";
+  mensaje.style.textAlign = "center";
+  mensaje.style.margin = "20px";
+  mensaje.style.color = "white";
+  cont1.appendChild(mensaje.cloneNode(true));
+  cont2.appendChild(mensaje.cloneNode(true));
 
   try {
     const res = await fetch("/api/tiempos-mejorados");
@@ -58,9 +57,7 @@ async function cargarMejoras() {
       });
 
       tabla.innerHTML = `
-        <thead>
-          <tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th><th>Mejora</th></tr>
-        </thead>
+        <thead><tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th><th>Mejora</th></tr></thead>
         <tbody>${filas.join("")}</tbody>
       `;
       container.appendChild(tabla);
@@ -89,44 +86,57 @@ function mostrarRanking(semanal) {
     `);
 
   tabla.innerHTML = `
-    <thead>
-      <tr><th>Posición</th><th>Piloto</th><th>Puntos</th></tr>
-    </thead>
+    <thead><tr><th>Posición</th><th>Piloto</th><th>Puntos</th></tr></thead>
     <tbody>${filas.join("")}</tbody>
   `;
-
   cont.appendChild(tabla);
 
-  // Limpia ranking anual de momento
   const anual = document.getElementById("rankingAnual");
   anual.innerHTML = "<h3>Ranking Anual (en desarrollo)</h3>";
+}
+
+async function registrarJugador(event) {
+  event.preventDefault();
+
+  const nombre = document.getElementById("nombreJugador").value.trim();
+  if (!nombre) return;
+
+  try {
+    const res = await fetch("/api/alta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre })
+    });
+    const r = await res.json();
+    document.getElementById("mensajeAlta").textContent = r.message || "✅ Alta completada";
+  } catch (e) {
+    document.getElementById("mensajeAlta").textContent = "❌ Error al registrar";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   cargarMejoras();
 
-  // Mostrar semana actual en título
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), 0, 1);
   const diff = (hoy - inicio + ((inicio.getTimezoneOffset() - hoy.getTimezoneOffset()) * 60000)) / 86400000;
   const numeroSemana = Math.ceil((diff + inicio.getDay() + 1) / 7);
   document.getElementById("tituloSemana").textContent = `LIGA VELOCIDRONE - Semana ${numeroSemana}`;
 
-  // Botón reglamento
   document.getElementById("btnReglamento").addEventListener("click", async () => {
     document.getElementById("popup").style.display = "block";
     try {
       const r = await fetch("/reglamento.txt");
       const texto = await r.text();
-      document.getElementById("popupTexto").textContent = texto;
+      document.getElementById("popupTexto").innerHTML = texto.replace(/\n/g, "<br>");
     } catch (e) {
       document.getElementById("popupTexto").textContent = "⚠ No se pudo cargar el reglamento.";
     }
   });
 
-  // Botón alta de piloto
   document.getElementById("btnAlta").addEventListener("click", () => {
     document.getElementById("popupAlta").style.display = "block";
+    document.getElementById("mensajeAlta").textContent = "";
     if (window.hcaptcha) hcaptcha.reset();
   });
 });

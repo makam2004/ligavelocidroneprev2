@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer';
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const TRACKS = [
   { escena: 33, pista: 1527, pestana: "Race Mode: Single Class" },

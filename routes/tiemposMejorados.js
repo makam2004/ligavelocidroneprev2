@@ -1,65 +1,123 @@
+import express from 'express';
 import puppeteer from 'puppeteer';
-import fetch from 'node-fetch';
-import { createClient } from '@supabase/supabase-js';
+import supabase from '../supabaseClient.js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const router = express.Router();
 
-const TRACKS = [
-  { escena: 33, pista: 1527, pestana: "Race Mode: Single Class" },
-  { escena: 16, pista: 1795, pestana: "3 Lap: Single Class" }
+const urls = [
+  {
+    url: 'https://www.velocidrone.com/leaderboard/33/1527/All',
+    pestana: 'Race Mode: Single Class'
+  },
+  {
+    url: 'https://www.velocidrone.com/leaderboard/16/1795/All',
+    pestana: '3 Lap: Single Class'
+  }
 ];
 
-export default async function obtenerResultados(req, res) {
+function calcularSemanaActual() {
+  const fecha = new Date();
+  const inicio = new Date(fecha.getFullYear(), 0, 1);
+  const dias = Math.floor((fecha - inicio) / 86400000);
+  return Math.ceil((dias + inicio.getDay() + 1) / 7);
+}
+
+async function obtenerResultados(url, pestana, jugadoresRegistrados) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.evaluate((pestanaTexto) => {
+    const tab = Array.from(document.querySelectorAll('a')).find(el =>
+      el.textContent.includes(pestanaTexto)
+    );
+    if (tab) tab.click();
+  }, pestana);
+
+  await page.waitForSelector('tbody tr', { timeout: 10000 });
+
+  const pista = await page.$eval('div.container h3', el => el.innerText.trim());
+  const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
+
+  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
+    return filas.map(fila => {
+      const celdas = fila.querySelectorAll('td');
+      const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
+      const jugador = celdas[2]?.innerText.trim();
+      if (jugadores.includes(jugador)) return { jugador, tiempo };
+      return null;
+    }).filter(Boolean);
+  }, jugadoresRegistrados);
+
+  await browser.close();
+  return { escenario, pista, pestana, resultados };
+}
+
+router.get('/api/tiempos-mejorados', async (_req, res) => {
   try {
-    const jugadores = await supabase.from('jugadores').select('nombre');
-    const nombresValidos = jugadores.data.map(j => j.nombre.toLowerCase());
+    const semana = calcularSemanaActual();
 
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox'],
-      headless: true
-    });
-    const resultados = [];
+    const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+    const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
+    const resultadosFinales = [];
 
-    for (const track of TRACKS) {
-      const url = `https://www.velocidrone.com/leaderboard/${track.escena}/${track.pista}/All`;
-      const page = await browser.newPage();
-      await page.goto(url, { waitUntil: 'networkidle2' });
+    for (const { url, pestana } of urls) {
+      const { escenario, pista, resultados } = await obtenerResultados(url, pestana, Object.keys(nombreToId));
 
-      // Selecciona la pestaña correspondiente
-      const pestanas = await page.$$('.leaderboard-category-tab');
-      const textoTabs = await Promise.all(pestanas.map(el => el.evaluate(n => n.textContent.trim())));
-      const indexTab = textoTabs.findIndex(t => t.includes(track.pestana));
-      if (indexTab >= 0) await pestanas[indexTab].click();
+      const comparados = [];
 
-      await page.waitForSelector('table tbody tr');
+      for (const r of resultados) {
+        const jugador_id = nombreToId[r.jugador];
+        if (!jugador_id) continue;
 
-      const datos = await page.evaluate(() => {
-        const filas = Array.from(document.querySelectorAll("table tbody tr"));
-        return filas.map(f => {
-          const celdas = f.querySelectorAll("td");
-          const player = celdas[2]?.innerText?.trim() || "";
-          const time = parseFloat(celdas[1]?.innerText?.trim()) || 0;
-          return { jugador: player, tiempo: time, mejora: "-" };
+        const { data: hist } = await supabase
+          .from('mejores_tiempos')
+          .select('mejor_tiempo')
+          .eq('jugador_id', jugador_id)
+          .eq('pista', pista)
+          .eq('escenario', escenario)
+          .limit(1)
+          .maybeSingle();
+
+        const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
+        const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
+
+        comparados.push({ jugador: r.jugador, tiempo: r.tiempo, mejora });
+
+        // Actualiza mejor tiempo si es nuevo récord
+        if (!hist || r.tiempo < hist.mejor_tiempo) {
+          await supabase.from('mejores_tiempos').upsert({
+            jugador_id,
+            pista,
+            escenario,
+            mejor_tiempo: r.tiempo,
+            ultima_actualizacion: new Date().toISOString()
+          }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
+        }
+
+        // Guarda resultado
+        await supabase.from('resultados').insert({
+          jugador_id,
+          semana,
+          pista,
+          escenario,
+          tiempo: r.tiempo
         });
-      });
+      }
 
-      // Filtrar solo pilotos registrados
-      const filtrados = datos.filter(d => nombresValidos.includes(d.jugador.toLowerCase()));
-
-      resultados.push({
-        escenario: track.escena,
-        pista: track.pista,
-        pestana: track.pestana,
-        resultados: filtrados
-      });
-
-      await page.close();
+      comparados.sort((a, b) => a.tiempo - b.tiempo);
+      resultadosFinales.push({ pestana, pista, escenario, resultados: comparados });
     }
 
-    await browser.close();
-    res.json(resultados);
+    res.json(resultadosFinales);
   } catch (e) {
     console.error("Scraping error:", e);
-    res.status(500).json({ error: "Error al obtener los resultados" });
+    res.status(500).json({ error: 'Error en el scraping' });
   }
-}
+});
+
+export default router;

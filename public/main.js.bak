@@ -27,35 +27,41 @@ async function cargarMejoras() {
     data.forEach((pista, index) => {
       const container = index === 0 ? cont1 : cont2;
 
-      const tituloPestana = document.createElement('h3');
-      tituloPestana.textContent = pista.pestana;
-      tituloPestana.style.color = 'red';
-      container.appendChild(tituloPestana);
+      const pestana = document.createElement('h3');
+      pestana.textContent = pista.pestana;
+      pestana.className = "nombre-pestana";
+      container.appendChild(pestana);
 
       const titulo = document.createElement("h3");
       titulo.textContent = `${pista.escenario} - ${pista.pista}`;
       container.appendChild(titulo);
 
       const tabla = document.createElement("table");
+      const filas = pista.resultados.map((r, i) => {
+        const puntosGanados = puntos[i] ?? 1;
+        semanal[r.jugador] = (semanal[r.jugador] || 0) + puntosGanados;
+
+        const mejoraValida = typeof r.mejora === "number";
+        const clase = mejoraValida
+          ? (r.mejora < 0 ? 'mejorado' : r.mejora > 0 ? 'empeorado' : '')
+          : '';
+        const mejora = mejoraValida
+          ? (r.mejora === 0 ? '=' : (r.mejora > 0 ? '+' : '') + r.mejora.toFixed(2) + ' s')
+          : r.mejora;
+
+        return `<tr class="${clase}">
+          <td>${i + 1}</td>
+          <td>${r.jugador}</td>
+          <td>${r.tiempo.toFixed(2)} s</td>
+          <td>${mejora}</td>
+        </tr>`;
+      });
+
       tabla.innerHTML = `
         <thead>
           <tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th><th>Mejora</th></tr>
         </thead>
-        <tbody>
-          ${pista.resultados.map((r, i) => {
-            const puntosGanados = puntos[i] ?? 1;
-            semanal[r.jugador] = (semanal[r.jugador] || 0) + puntosGanados;
-            const clase = r.mejora < 0 ? 'mejorado' : r.mejora > 0 ? 'empeorado' : '';
-            const mejora = r.mejora === 0 ? '=' : (r.mejora > 0 ? '+' : '') + r.mejora.toFixed(2) + ' s';
-
-            return `<tr class="${clase}">
-              <td>${i + 1}</td>
-              <td>${r.jugador}</td>
-              <td>${r.tiempo.toFixed(2)} s</td>
-              <td>${mejora}</td>
-            </tr>`;
-          }).join("")}
-        </tbody>
+        <tbody>${filas.join("")}</tbody>
       `;
       container.appendChild(tabla);
     });
@@ -68,38 +74,60 @@ async function cargarMejoras() {
 }
 
 function mostrarRanking(semanal) {
-  const rankingCont = document.getElementById("rankingSemanal");
-  rankingCont.innerHTML = "<h3>Ranking Semanal</h3>";
-
+  const cont = document.getElementById("rankingSemanal");
+  cont.innerHTML = "<h3>Ranking Semanal</h3>";
   const tabla = document.createElement("table");
+
+  const filas = Object.entries(semanal)
+    .sort((a, b) => b[1] - a[1])
+    .map(([jugador, puntos], i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${jugador}</td>
+        <td>${puntos}</td>
+      </tr>
+    `);
+
   tabla.innerHTML = `
     <thead>
       <tr><th>Posición</th><th>Piloto</th><th>Puntos</th></tr>
     </thead>
-    <tbody>
-      ${Object.entries(semanal)
-        .sort((a, b) => b[1] - a[1])
-        .map(([jugador, puntos], i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${jugador}</td>
-            <td>${puntos}</td>
-          </tr>
-        `).join("")}
-    </tbody>
+    <tbody>${filas.join("")}</tbody>
   `;
-  rankingCont.appendChild(tabla);
+
+  cont.appendChild(tabla);
+
+  // Limpia ranking anual de momento
+  const anual = document.getElementById("rankingAnual");
+  anual.innerHTML = "<h3>Ranking Anual (en desarrollo)</h3>";
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   cargarMejoras();
 
-  // ✅ Botones para mostrar popups
-  document.getElementById("btnReglamento").addEventListener("click", () => {
+  // Mostrar semana actual en título
+  const hoy = new Date();
+  const inicio = new Date(hoy.getFullYear(), 0, 1);
+  const diff = (hoy - inicio + ((inicio.getTimezoneOffset() - hoy.getTimezoneOffset()) * 60000)) / 86400000;
+  const numeroSemana = Math.ceil((diff + inicio.getDay() + 1) / 7);
+  document.getElementById("tituloSemana").textContent = `LIGA VELOCIDRONE - Semana ${numeroSemana}`;
+
+  // Botón reglamento
+  document.getElementById("btnReglamento").addEventListener("click", async () => {
     document.getElementById("popup").style.display = "block";
+    try {
+      const r = await fetch("/reglamento.txt");
+      const texto = await r.text();
+      document.getElementById("popupTexto").textContent = texto;
+    } catch (e) {
+      document.getElementById("popupTexto").textContent = "⚠ No se pudo cargar el reglamento.";
+    }
   });
+
+  // Botón alta de piloto
   document.getElementById("btnAlta").addEventListener("click", () => {
     document.getElementById("popupAlta").style.display = "block";
+    if (window.hcaptcha) hcaptcha.reset();
   });
 });
 

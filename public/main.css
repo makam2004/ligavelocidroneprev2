@@ -11,8 +11,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   background-color: rgba(0,0,0,0.7);
   padding: 10px 20px;
+  gap: 10px;
 }
 
 .top-left, .top-right {
@@ -20,7 +22,7 @@ body {
   text-align: center;
 }
 .top-center {
-  width: 60%;
+  width: 100%;
   text-align: center;
 }
 
