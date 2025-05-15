@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fetch from 'node-fetch'; // IMPORTANTE para verificar hCaptcha en Node
 import supabase from './supabaseClient.js';
 import tiemposMejorados from './routes/tiemposMejorados.js';
+import adminRoutes from './routes/admin.js'
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -74,6 +75,7 @@ app.post('/api/alta-jugador', async (req, res) => {
 
 // ✅ Rutas de resultados por scraping
 app.use(tiemposMejorados);
+app.use(adminRoutes); 
 
 // ✅ Iniciar servidor
 app.listen(PORT, () => {
