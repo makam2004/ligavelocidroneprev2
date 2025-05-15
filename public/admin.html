@@ -2,52 +2,47 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin - LIGA VELOCIDRONE</title>
-  <link rel="stylesheet" href="/main.css" />
+  <title>Admin LIGA VELOCIDRONE</title>
+  <style>
+    body {
+      background-color: black;
+      color: white;
+      font-family: sans-serif;
+      padding: 30px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 8px 0;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+    }
+  </style>
 </head>
 <body>
-  <div class="top-bar">
-    <h1>LIGA VELOCIDRONE - Administración - Semana 20</h1>
-  </div>
-
-  <div class="container">
-    <h3>📌 Actualizar Tracks Semanales</h3>
-    <form id="formTracks">
-      <label>Escena Track 1:</label><input type="number" name="track1_escena" required><br>
-      <label>Pista Track 1:</label><input type="number" name="track1_pista" required><br>
-      <label>Escena Track 2:</label><input type="number" name="track2_escena" required><br>
-      <label>Pista Track 2:</label><input type="number" name="track2_pista" required><br>
-      <button type="submit">💾 Guardar Tracks</button>
-    </form>
-
-    <h3>✅ Cerrar Semana y Pasar Puntos al Ranking Anual</h3>
-    <form id="formCommit">
-      <button type="submit">📤 Commit Ranking Semanal</button>
-    </form>
-
-    <div id="resultado" style="margin-top: 20px; color: lightgreen;"></div>
-  </div>
+  <h1>⚙️ Administración de Tracks</h1>
+  <form id="formTracks">
+    <label>Track 1 - Escenario ID: <input name="track1_escena" type="number" required /></label>
+    <label>Track 1 - Pista ID: <input name="track1_pista" type="number" required /></label>
+    <label>Track 2 - Escenario ID: <input name="track2_escena" type="number" required /></label>
+    <label>Track 2 - Pista ID: <input name="track2_pista" type="number" required /></label>
+    <button type="submit">Actualizar Tracks</button>
+  </form>
+  <div id="mensaje"></div>
 
   <script>
-    document.getElementById("formTracks").addEventListener("submit", async (e) => {
+    document.getElementById('formTracks').onsubmit = async e => {
       e.preventDefault();
-      const datos = Object.fromEntries(new FormData(e.target));
-      const res = await fetch("/admin/update-tracks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(datos)
+      const formData = Object.fromEntries(new FormData(e.target));
+      const res = await fetch('/admin/update-tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
-      const r = await res.text();
-      document.getElementById("resultado").textContent = r;
-    });
-
-    document.getElementById("formCommit").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const res = await fetch("/admin/commit-week", { method: "POST" });
-      const r = await res.text();
-      document.getElementById("resultado").textContent = r;
-    });
+      const texto = await res.text();
+      document.getElementById('mensaje').textContent = texto;
+    };
   </script>
 </body>
 </html>

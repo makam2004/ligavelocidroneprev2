@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LIGA VELOCIDRONE - Semana 20</title>
+  <title>LIGA VELOCIDRONE</title>
   <link rel="stylesheet" href="main.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
       <button id="btnReglamento">📘 Reglamento</button>
     </div>
     <div class="top-center">
-      <h1>LIGA VELOCIDRONE - Semana 20</h1>
+      <h1 id="tituloSemana">LIGA VELOCIDRONE - Semana</h1>
     </div>
     <div class="top-right">
       <button id="btnAlta">➕ Alta de Piloto</button>
@@ -36,7 +36,7 @@
   <div id="popup" class="popup" style="display:none;">
     <h3>Reglamento</h3>
     <button onclick="cerrarPopups()">✖</button>
-    <div id="popupTexto">Aquí irá el reglamento leído desde un archivo o definido manualmente.</div>
+    <div id="popupTexto">Cargando...</div>
   </div>
 
   <div id="popupAlta" class="popup" style="display:none;">

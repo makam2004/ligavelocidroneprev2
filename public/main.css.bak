@@ -1,20 +1,14 @@
 body {
-  background: url("background.jpg") no-repeat center center fixed;
-  background-size: cover;
-  font-family: Arial, sans-serif;
+	background-color: #000;
   color: white;
-  margin: 0;
-  padding: 0;
 }
 
 .top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  background-color: rgba(0,0,0,0.7);
-  padding: 10px 20px;
-  gap: 10px;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.85);
 }
 
 .top-left, .top-right {
@@ -46,11 +40,11 @@ h1 {
 }
 
 .card {
-  background-color: rgba(0, 0, 0, 0.65);
-  padding: 20px;
-  flex: 1;
-  min-width: 300px;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  width: 48%;
 }
 
 .card h3 {
