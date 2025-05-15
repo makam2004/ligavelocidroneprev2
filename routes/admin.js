@@ -1,71 +1,59 @@
 import express from 'express';
-import supabase from '../supabaseClient.js';
+import basicAuth from 'express-basic-auth';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-router.post('/api/admin/actualizar-tracks', async (req, res) => {
-  const { track1, track2 } = req.body;
+router.use(basicAuth({
+  users: { [process.env.ADMIN_USER]: process.env.ADMIN_PASS },
+  challenge: true
+}));
 
-  if (!track1 || !track2) {
-    return res.status(400).send('Faltan los IDs de los tracks.');
+router.get('/admin', (_req, res) => {
+  res.sendFile('admin.html', { root: './public' });
+});
+
+router.post('/admin/update-tracks', express.json(), async (req, res) => {
+  const { track1_escena, track1_pista, track2_escena, track2_pista } = req.body;
+  const { error } = await supabase.from('configuracion').insert([{
+    track1_escena: +track1_escena,
+    track1_pista: +track1_pista,
+    track2_escena: +track2_escena,
+    track2_pista: +track2_pista,
+    fecha_actualizacion: new Date()
+  }]);
+
+  await supabase.from('logs_admin').insert([{
+    usuario: req.auth.user,
+    accion: "Actualizar Tracks",
+    detalles: JSON.stringify(req.body)
+  }]);
+
+  if (error) {
+    res.status(500).send("❌ Error al guardar configuración");
+  } else {
+    res.send("✅ Tracks actualizados correctamente.");
+  }
+});
+
+router.post('/admin/commit-week', async (req, res) => {
+  const { data: semanal } = await supabase.from('ranking_semanal').select('*');
+
+  for (const fila of semanal) {
+    const { nombre, puntos } = fila;
+    await supabase.rpc('incrementar_ranking_anual', { jugador: nombre, puntos_a_sumar: puntos });
   }
 
-  try {
-    // 1. Leer ranking semanal actual
-    const { data: jugadoresSemana } = await supabase
-      .from('resultados')
-      .select('jugador_id, tiempo, pista')
-      .order('tiempo', { ascending: true });
+  await supabase.from('ranking_semanal').delete().neq('nombre', '');
 
-    // Agrupar por pista
-    const porPista = {};
-    for (const r of jugadoresSemana) {
-      if (!porPista[r.pista]) porPista[r.pista] = [];
-      porPista[r.pista].push(r.jugador_id);
-    }
+  await supabase.from('logs_admin').insert([{
+    usuario: req.auth.user,
+    accion: "Commit Semanal",
+    detalles: `Pasados ${semanal.length} pilotos al ranking anual`
+  }]);
 
-    // 2. Calcular puntos por posición
-    const puntosRanking = [10, 8, 6, 4, 2]; // resto 1 punto
-    const acumulado = {};
-
-    for (const pista in porPista) {
-      porPista[pista].forEach((jugadorId, idx) => {
-        const puntos = puntosRanking[idx] ?? 1;
-        acumulado[jugadorId] = (acumulado[jugadorId] || 0) + puntos;
-      });
-    }
-
-    // 3. Actualizar ranking_anual
-    for (const jugador_id in acumulado) {
-      const puntos = acumulado[jugador_id];
-
-      await supabase.from('ranking_anual').upsert({
-        jugador_id,
-        puntos,
-        actualizado: new Date().toISOString()
-      }, {
-        onConflict: ['jugador_id'],
-        ignoreDuplicates: false
-      }).select();
-    }
-
-    // 4. Eliminar resultados semanales
-    await supabase.from('resultados').delete().neq('jugador_id', '');
-
-    // 5. Actualizar configuración de tracks
-    await supabase.from('configuracion').delete().neq('id', 0);
-    await supabase.from('configuracion').insert({
-      track1_id: track1,
-      track2_id: track2,
-      fecha_actualizacion: new Date().toISOString()
-    });
-
-    res.send('Tracks actualizados, puntos sumados al ranking anual y ranking semanal reiniciado.');
-
-  } catch (err) {
-    console.error('Error al actualizar tracks:', err);
-    res.status(500).send('Error al actualizar la configuración de tracks.');
-  }
+  res.send("✅ Puntos pasados al ranking anual correctamente.");
 });
 
 export default router;

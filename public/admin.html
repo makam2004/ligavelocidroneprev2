@@ -2,58 +2,51 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Panel de Administración</title>
-  <style>
-    body {
-      background: #111;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      padding: 40px;
-    }
-    input, button {
-      padding: 10px;
-      width: 100%;
-      max-width: 400px;
-      margin-bottom: 15px;
-      font-size: 1rem;
-    }
-    button {
-      background: #1976d2;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:hover {
-      background: #2196f3;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - LIGA VELOCIDRONE</title>
+  <link rel="stylesheet" href="/main.css" />
 </head>
 <body>
-  <h2>Panel de Administración</h2>
-  <form id="formTracks">
-    <label for="track1">ID del Track 1:</label><br />
-    <input type="text" id="track1" name="track1" required /><br />
-    <label for="track2">ID del Track 2:</label><br />
-    <input type="text" id="track2" name="track2" required /><br />
-    <button type="submit">Actualizar Tracks</button>
-  </form>
-  <p id="respuesta"></p>
+  <div class="top-bar">
+    <h1>LIGA VELOCIDRONE - Administración - Semana 20</h1>
+  </div>
+
+  <div class="container">
+    <h3>📌 Actualizar Tracks Semanales</h3>
+    <form id="formTracks">
+      <label>Escena Track 1:</label><input type="number" name="track1_escena" required><br>
+      <label>Pista Track 1:</label><input type="number" name="track1_pista" required><br>
+      <label>Escena Track 2:</label><input type="number" name="track2_escena" required><br>
+      <label>Pista Track 2:</label><input type="number" name="track2_pista" required><br>
+      <button type="submit">💾 Guardar Tracks</button>
+    </form>
+
+    <h3>✅ Cerrar Semana y Pasar Puntos al Ranking Anual</h3>
+    <form id="formCommit">
+      <button type="submit">📤 Commit Ranking Semanal</button>
+    </form>
+
+    <div id="resultado" style="margin-top: 20px; color: lightgreen;"></div>
+  </div>
 
   <script>
-    document.getElementById('formTracks').addEventListener('submit', async (e) => {
+    document.getElementById("formTracks").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const track1 = document.getElementById('track1').value;
-      const track2 = document.getElementById('track2').value;
-
-      const res = await fetch('/api/admin/actualizar-tracks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ track1, track2 })
+      const datos = Object.fromEntries(new FormData(e.target));
+      const res = await fetch("/admin/update-tracks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
       });
+      const r = await res.text();
+      document.getElementById("resultado").textContent = r;
+    });
 
-      const text = await res.text();
-      document.getElementById('respuesta').textContent = text;
+    document.getElementById("formCommit").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await fetch("/admin/commit-week", { method: "POST" });
+      const r = await res.text();
+      document.getElementById("resultado").textContent = r;
     });
   </script>
 </body>
