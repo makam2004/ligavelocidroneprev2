@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const semana = obtenerSemanaActual();
-  document.getElementById('tituloSemana').textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
+  document.getElementById("tituloSemana").textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
   cargarMejoras();
+  cargarRankingAnual();
 
   document.getElementById('btnReglamento').onclick = mostrarReglamento;
   document.getElementById('btnAlta').onclick = mostrarAlta;
@@ -35,6 +36,7 @@ function cerrarPopups() {
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('mensajeAlta').textContent = '';
   document.getElementById('nombreJugador').value = '';
+  if (window.hcaptcha) hcaptcha.reset();
 }
 
 async function registrarJugador(event) {
@@ -68,24 +70,24 @@ async function registrarJugador(event) {
 }
 
 async function cargarMejoras() {
-  const track1 = document.getElementById('track1');
-  const track2 = document.getElementById('track2');
-  track1.innerHTML = track2.innerHTML = '<p>⏳ Leyendo resultados...</p>';
+  const contenedor = document.getElementById('mejoras');
+  contenedor.innerHTML = '<p>Cargando resultados...</p>';
 
   try {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
+    contenedor.innerHTML = '';
 
-    const puntos = [10, 9, 8, 7, 6, 5, 4, 3, 2];
     const ranking = {};
+    const puntos = [10, 9, 8, 7, 6, 5, 4, 3, 2];
 
-    [track1, track2].forEach((trackDiv, index) => {
-      const pista = data[index];
-      const div = document.createElement('div');
+    data.forEach((pista, idx) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
 
-      const h3 = document.createElement('h3');
-      h3.innerHTML = `<span style="color:red">${pista.pestaña}</span><br>${pista.escenario} - ${pista.pista}`;
-      div.appendChild(h3);
+      const titulo = document.createElement('h3');
+      titulo.innerHTML = `<span style="color:red">${idx === 0 ? 'Race Mode: Single Class' : '3 Lap: Single Class'}</span><br>${pista.escenario} - ${pista.pista}`;
+      card.appendChild(titulo);
 
       const tabla = document.createElement('table');
       tabla.innerHTML = `
@@ -98,9 +100,8 @@ async function cargarMejoras() {
           }).join('')}
         </tbody>
       `;
-      div.appendChild(tabla);
-      trackDiv.innerHTML = '';
-      trackDiv.appendChild(div);
+      card.appendChild(tabla);
+      contenedor.appendChild(card);
     });
 
     const entries = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
@@ -110,6 +111,23 @@ async function cargarMejoras() {
       `</tbody></table>`;
   } catch (err) {
     console.error('❌ Error capturado en cargarMejoras:', err);
-    track1.innerHTML = track2.innerHTML = '<p>Error al cargar los resultados.</p>';
+    contenedor.innerHTML = '<p>Error al cargar los resultados.</p>';
+  }
+}
+
+async function cargarRankingAnual() {
+  try {
+    const res = await fetch('/api/ranking-anual');
+    const data = await res.json();
+
+    const html = data.map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntos}</td></tr>`
+    ).join('');
+
+    document.querySelector('#rankingAnual .resultado').innerHTML =
+      `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>${html}</tbody></table>`;
+  } catch (err) {
+    console.error('Error al cargar ranking anual:', err);
+    document.querySelector('#rankingAnual .resultado').innerHTML = '<p>Error</p>';
   }
 }

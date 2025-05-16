@@ -24,10 +24,7 @@
   <div class="overlay" id="overlay"></div>
 
   <div class="container">
-    <div class="track-row">
-      <div id="track1" class="card">⏳ Leyendo resultados...</div>
-      <div id="track2" class="card">⏳ Leyendo resultados...</div>
-    </div>
+<div id="mejoras" class="track-row">⏳ Leyendo resultados...</div>
     <div class="ranking-row">
       <div id="rankingSemanal" class="card">
         <h3>Ranking Semanal</h3>
@@ -41,14 +38,14 @@
   </div>
 
   <!-- Popup Reglamento -->
-  <div id="popup" class="popup">
+  <div id="popup" class="popup" style="display:none;">
     <h3>Reglamento</h3>
     <button onclick="cerrarPopups()" style="float:right;background:#ff4444;">✖</button>
     <div id="popupTexto"></div>
   </div>
 
   <!-- Popup Alta Piloto -->
-  <div id="popupAlta" class="popup">
+  <div id="popupAlta" class="popup" style="display:none;">
     <h3>Alta de piloto</h3>
     <button onclick="cerrarPopups()" style="float:right;background:#ff4444;">✖</button>
     <form onsubmit="registrarJugador(event)">
