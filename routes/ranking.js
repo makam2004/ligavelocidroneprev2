@@ -4,22 +4,23 @@ import supabase from '../supabaseClient.js';
 const router = express.Router();
 
 router.get('/api/ranking-anual', async (_req, res) => {
-  const { data, error } = await supabase
-    .from('ranking_anual')
-    .select('jugador_id, puntos, jugadores(nombre)')
-    .order('puntos', { ascending: false });
+  try {
+    // Fallback manual (sin JOIN Supabase)
+    const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+    const { data: ranking } = await supabase.from('ranking_anual').select('jugador_id, puntos');
 
-  if (error) {
-    console.error('Error al obtener ranking anual:', error);
-    return res.status(500).json({ error: error.message });
+    const nombres = Object.fromEntries(jugadores.map(j => [j.id, j.nombre]));
+
+    const resultado = ranking.map(r => ({
+      nombre: nombres[r.jugador_id] || 'Desconocido',
+      puntos: r.puntos
+    }));
+
+    res.json(resultado.sort((a, b) => b.puntos - a.puntos));
+  } catch (err) {
+    console.error('Error al obtener ranking anual:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
-
-  const resultado = data.map(r => ({
-    nombre: r.jugadores?.nombre || 'Desconocido',
-    puntos: r.puntos
-  }));
-
-  res.json(resultado);
 });
 
 export default router;
