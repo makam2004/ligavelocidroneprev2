@@ -1,6 +1,7 @@
 import express from 'express';
 import basicAuth from 'express-basic-auth';
-import { createClient } from '@supabase/supabase-js';
+import supabase from './supabaseClient.js'; // si está en la raíz
+
 
 const router = express.Router();
 
