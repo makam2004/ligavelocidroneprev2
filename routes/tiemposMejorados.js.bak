@@ -1,13 +1,8 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
-import supabase from '../supabaseClient.js';
+import supabase from './supabaseClient.js';
 
 const router = express.Router();
-
-const urls = [
-  'https://www.velocidrone.com/leaderboard/33/1527/All',
-  'https://www.velocidrone.com/leaderboard/16/1795/All'
-];
 
 function calcularSemanaActual() {
   const fecha = new Date();
@@ -16,7 +11,7 @@ function calcularSemanaActual() {
   return Math.ceil((dias + inicio.getDay() + 1) / 7);
 }
 
-async function obtenerResultados(url, nombresJugadores) {
+async function obtenerResultados(url, nombresJugadores, selectorPestania) {
   try {
     const browser = await puppeteer.launch({
       headless: true,
@@ -26,28 +21,21 @@ async function obtenerResultados(url, nombresJugadores) {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-    if (url.includes('33/1527')) {
-      // Race Mode: Single Class
-      await page.evaluate(() => {
-        const tab = [...document.querySelectorAll('a')].find(a => a.textContent.includes('Race Mode'));
-        if (tab) tab.click();
-      });
-    } else {
-      // 3 Lap: Single Class
-      await page.evaluate(() => {
-        const tab = [...document.querySelectorAll('a')].find(a => a.textContent.includes('3 Lap'));
-        if (tab) tab.click();
-      });
-    }
+    // Click en pestaña deseada
+    await page.evaluate((texto) => {
+      const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
+        el.textContent.includes(texto)
+      );
+      if (tabs.length > 0) tabs[0].click();
+    }, selectorPestania);
 
-    await new Promise(res => setTimeout(res, 1000));
     await page.waitForSelector('tbody tr', { timeout: 10000 });
 
     const pista = await page.$eval('div.container h3', el => el.innerText.trim());
     const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
     const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
-      return [...filas].map(fila => {
+      return filas.map(fila => {
         const celdas = fila.querySelectorAll('td');
         const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
         const jugador = celdas[2]?.innerText.trim();
@@ -71,10 +59,17 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
   const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
   const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
 
+  const { data: config } = await supabase.from('configuracion').select('*').eq('id', 1).single();
+
+  const urls = [
+    { url: config.track1_url, pestaña: 'Race Mode' },
+    { url: config.track2_url, pestaña: '3 Lap' }
+  ];
+
   const respuesta = [];
 
-  for (const url of urls) {
-    const { pista, escenario, resultados } = await obtenerResultados(url, Object.keys(nombreToId));
+  for (const { url, pestaña } of urls) {
+    const { pista, escenario, resultados } = await obtenerResultados(url, Object.keys(nombreToId), pestaña);
 
     const resultadosConId = resultados.map(r => ({
       ...r,
@@ -90,12 +85,17 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
         .eq('jugador_id', r.jugador_id)
         .eq('pista', pista)
         .eq('escenario', escenario)
+        .limit(1)
         .maybeSingle();
 
       const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
       const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
 
-      comparados.push({ jugador: r.jugador, tiempo: r.tiempo, mejora });
+      comparados.push({
+        jugador: r.jugador,
+        tiempo: r.tiempo,
+        mejora
+      });
 
       if (!hist || r.tiempo < hist.mejor_tiempo) {
         await supabase.from('mejores_tiempos').upsert({
