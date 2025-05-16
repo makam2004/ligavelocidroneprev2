@@ -95,6 +95,9 @@ async function cargarMejoras() {
   try {
     const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
+
+    if (!Array.isArray(data)) throw new Error("Datos no válidos");
+
     contenedor.innerHTML = '';
 
     const ranking = {};
@@ -105,7 +108,8 @@ async function cargarMejoras() {
       card.classList.add('card');
 
       const titulo = document.createElement('h3');
-      titulo.innerHTML = `<span style="color:red">${pista.pestaña}</span><br>${pista.escenario} - ${pista.pista}`;
+      const pestaña = idx === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
+      titulo.innerHTML = `<span style="color:red">${pestaña}</span><br>${pista.escenario} - ${pista.pista}`;
       card.appendChild(titulo);
 
       const tabla = document.createElement('table');
@@ -141,6 +145,8 @@ async function cargarRankingAnual() {
   try {
     const res = await fetch('/api/ranking-anual');
     const data = await res.json();
+
+    if (!Array.isArray(data)) throw new Error("Ranking anual inválido");
 
     const html = data.map((r, i) =>
       `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntos}</td></tr>`

@@ -1,12 +1,18 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const semana = obtenerSemanaActual();
-  document.getElementById("tituloSemana").textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
+  const titulo = document.getElementById("tituloSemana");
+  if (titulo) titulo.textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
+
   cargarMejoras();
   cargarRankingAnual();
 
-  document.getElementById('btnReglamento').onclick = mostrarReglamento;
-  document.getElementById('btnAlta').onclick = mostrarAlta;
-  document.getElementById('overlay').onclick = cerrarPopups;
+  const btnReglamento = document.getElementById('btnReglamento');
+  const btnAlta = document.getElementById('btnAlta');
+  const overlay = document.getElementById('overlay');
+
+  if (btnReglamento) btnReglamento.onclick = mostrarReglamento;
+  if (btnAlta) btnAlta.onclick = mostrarAlta;
+  if (overlay) overlay.onclick = cerrarPopups;
 });
 
 function obtenerSemanaActual() {
@@ -19,34 +25,46 @@ function obtenerSemanaActual() {
 async function mostrarReglamento() {
   const res = await fetch('reglamento.txt');
   const texto = await res.text();
-  document.getElementById('popupTexto').innerHTML = `<pre>${texto}</pre>`;
-  document.getElementById('popup').style.display = 'block';
-  document.getElementById('overlay').style.display = 'block';
+  const popupTexto = document.getElementById('popupTexto');
+  const popup = document.getElementById('popup');
+  const overlay = document.getElementById('overlay');
+
+  if (popupTexto) popupTexto.innerHTML = `<pre>${texto}</pre>`;
+  if (popup) popup.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
 }
 
 function mostrarAlta() {
-  document.getElementById('popupAlta').style.display = 'block';
-  document.getElementById('overlay').style.display = 'block';
+  const popupAlta = document.getElementById('popupAlta');
+  const overlay = document.getElementById('overlay');
+  if (popupAlta) popupAlta.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
   if (window.hcaptcha) hcaptcha.reset();
 }
 
 function cerrarPopups() {
-  document.getElementById('popup').style.display = 'none';
-  document.getElementById('popupAlta').style.display = 'none';
-  document.getElementById('overlay').style.display = 'none';
-  document.getElementById('mensajeAlta').textContent = '';
-  document.getElementById('nombreJugador').value = '';
+  const popup = document.getElementById('popup');
+  const popupAlta = document.getElementById('popupAlta');
+  const overlay = document.getElementById('overlay');
+  const mensajeAlta = document.getElementById('mensajeAlta');
+  const nombreJugador = document.getElementById('nombreJugador');
+
+  if (popup) popup.style.display = 'none';
+  if (popupAlta) popupAlta.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+  if (mensajeAlta) mensajeAlta.textContent = '';
+  if (nombreJugador) nombreJugador.value = '';
   if (window.hcaptcha) hcaptcha.reset();
 }
 
 async function registrarJugador(event) {
   event.preventDefault();
-  const nombre = document.getElementById('nombreJugador').value.trim();
+  const nombre = document.getElementById('nombreJugador')?.value.trim();
   const token = document.querySelector('[name="h-captcha-response"]')?.value;
   const mensaje = document.getElementById('mensajeAlta');
 
   if (!nombre || !token) {
-    mensaje.textContent = 'Por favor, completa el captcha y el nombre.';
+    if (mensaje) mensaje.textContent = 'Por favor, completa el captcha y el nombre.';
     return;
   }
 
@@ -59,19 +77,20 @@ async function registrarJugador(event) {
 
     const json = await res.json();
     if (res.ok) {
-      mensaje.textContent = 'Jugador registrado correctamente.';
-      hcaptcha.reset();
+      if (mensaje) mensaje.textContent = 'Jugador registrado correctamente.';
+      if (window.hcaptcha) hcaptcha.reset();
     } else {
-      mensaje.textContent = json?.error || 'Error al registrar.';
+      if (mensaje) mensaje.textContent = json?.error || 'Error al registrar.';
     }
   } catch (err) {
-    mensaje.textContent = 'Error al conectar con el servidor.';
+    if (mensaje) mensaje.textContent = 'Error al conectar con el servidor.';
   }
 }
 
 async function cargarMejoras() {
   const contenedor = document.getElementById('mejoras');
-  contenedor.innerHTML = '<p>Cargando resultados...</p>';
+  if (!contenedor) return;
+  contenedor.innerHTML = '<p>⏳ Leyendo resultados...</p>';
 
   try {
     const res = await fetch('/api/tiempos-mejorados');
@@ -86,7 +105,7 @@ async function cargarMejoras() {
       card.classList.add('card');
 
       const titulo = document.createElement('h3');
-      titulo.innerHTML = `<span style="color:red">${idx === 0 ? 'Race Mode: Single Class' : '3 Lap: Single Class'}</span><br>${pista.escenario} - ${pista.pista}`;
+      titulo.innerHTML = `<span style="color:red">${pista.pestaña}</span><br>${pista.escenario} - ${pista.pista}`;
       card.appendChild(titulo);
 
       const tabla = document.createElement('table');
@@ -105,10 +124,13 @@ async function cargarMejoras() {
     });
 
     const entries = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
-    document.querySelector('#rankingSemanal .resultado').innerHTML =
-      `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>` +
-      entries.map(([jugador, puntos], i) => `<tr><td>${i + 1}</td><td>${jugador}</td><td>${puntos}</td></tr>`).join('') +
-      `</tbody></table>`;
+    const tablaSemanal = document.querySelector('#rankingSemanal .resultado');
+    if (tablaSemanal) {
+      tablaSemanal.innerHTML =
+        `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>` +
+        entries.map(([jugador, puntos], i) => `<tr><td>${i + 1}</td><td>${jugador}</td><td>${puntos}</td></tr>`).join('') +
+        `</tbody></table>`;
+    }
   } catch (err) {
     console.error('❌ Error capturado en cargarMejoras:', err);
     contenedor.innerHTML = '<p>Error al cargar los resultados.</p>';
@@ -124,10 +146,14 @@ async function cargarRankingAnual() {
       `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntos}</td></tr>`
     ).join('');
 
-    document.querySelector('#rankingAnual .resultado').innerHTML =
-      `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>${html}</tbody></table>`;
+    const tabla = document.querySelector('#rankingAnual .resultado');
+    if (tabla) {
+      tabla.innerHTML =
+        `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>${html}</tbody></table>`;
+    }
   } catch (err) {
     console.error('Error al cargar ranking anual:', err);
-    document.querySelector('#rankingAnual .resultado').innerHTML = '<p>Error</p>';
+    const tabla = document.querySelector('#rankingAnual .resultado');
+    if (tabla) tabla.innerHTML = '<p>Error</p>';
   }
 }
