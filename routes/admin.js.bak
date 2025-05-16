@@ -38,7 +38,7 @@ router.post('/admin/update-tracks', async (req, res) => {
     return res.status(500).send('Error al actualizar tracks');
   }
 
-  res.send('✅ Tracks actualizados');
+  res.status(200).json({ ok: true, mensaje: '✅ Tracks actualizados' });
 });
 
 export default router;

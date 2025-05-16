@@ -3,42 +3,51 @@ import basicAuth from 'express-basic-auth';
 import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
+
+// Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Autenticación solo para rutas /admin
-router.use('/admin', basicAuth({
+// Middleware de autenticación solo para rutas /admin y /admin/update-tracks
+const auth = basicAuth({
   users: { [process.env.ADMIN_USER]: process.env.ADMIN_PASS },
   challenge: true
-}));
+});
 
-router.use(express.json());
+router.use('/admin', auth);
+router.use('/admin/update-tracks', auth);
 
-// Página admin
+// Servir la página admin.html protegida
 router.get('/admin', (_req, res) => {
   res.sendFile('admin.html', { root: './public' });
 });
 
-// Actualización de tracks
+// Ruta POST para actualizar tracks y ejecutar función de consolidación de puntos
 router.post('/admin/update-tracks', async (req, res) => {
-  const { track1_escena, track1_pista, track2_escena, track2_pista } = req.body;
+  try {
+    const { track1_escena, track1_pista, track2_escena, track2_pista } = req.body;
 
-  const { error } = await supabase
-    .from('configuracion')
-    .upsert([{
-      id: 1,
-      track1_escena,
-      track1_pista,
-      track2_escena,
-      track2_pista,
-      fecha_actualizacion: new Date().toISOString()
-    }], { onConflict: ['id'] });
+    const { error } = await supabase
+      .from('configuracion')
+      .upsert([{
+        id: 1,
+        track1_escena,
+        track1_pista,
+        track2_escena,
+        track2_pista,
+        fecha_actualizacion: new Date().toISOString()
+      }], { onConflict: ['id'] });
 
-  if (error) {
-    console.error(error);
-    return res.status(500).send('Error al actualizar tracks');
+    if (error) throw error;
+
+    // Llamada a la función de Supabase que suma los puntos del ranking semanal al anual
+    const { error: rpcError } = await supabase.rpc('incrementar_ranking_anual');
+    if (rpcError) throw rpcError;
+
+    res.status(200).json({ mensaje: '✅ Tracks actualizados y puntos añadidos al ranking anual' });
+  } catch (err) {
+    console.error('❌ Error en update-tracks:', err.message);
+    res.status(500).json({ error: 'Error al actualizar tracks o ranking anual' });
   }
-
-  res.status(200).json({ ok: true, mensaje: '✅ Tracks actualizados' });
 });
 
 export default router;

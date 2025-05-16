@@ -16,6 +16,18 @@ const __dirname = path.dirname(__filename);
 // Middleware
 app.use(express.json());
 
+import basicAuth from 'express-basic-auth';
+
+const usuarios = {};
+usuarios[process.env.ADMIN_USER] = process.env.ADMIN_PASS;
+
+// Proteger admin.html
+app.use('/admin.html', basicAuth({
+  users: usuarios,
+  challenge: true
+}));
+
+
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 

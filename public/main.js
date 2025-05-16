@@ -1,3 +1,35 @@
+document.addEventListener('DOMContentLoaded', async () => {
+  const semana = obtenerSemanaActual();
+  document.getElementById('titulo').textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
+  cargarMejoras();
+  cargarRankingAnual();
+
+  document.getElementById('btnReglamento').onclick = mostrarReglamento;
+  document.getElementById('btnAlta').onclick = mostrarAlta;
+  document.getElementById('overlay').onclick = cerrarPopups;
+});
+
+function obtenerSemanaActual() {
+  const fecha = new Date();
+  const inicio = new Date(fecha.getFullYear(), 0, 1);
+  const dias = Math.floor((fecha - inicio) / 86400000);
+  return Math.ceil((dias + inicio.getDay() + 1) / 7);
+}
+
+async function mostrarReglamento() {
+  const res = await fetch('reglamento.txt');
+  const texto = await res.text();
+  document.getElementById('popupTexto').innerHTML = `<pre>${texto}</pre>`;
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+
+function mostrarAlta() {
+  document.getElementById('popupAlta').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+  if (window.hcaptcha) hcaptcha.reset();
+}
+
 function cerrarPopups() {
   document.getElementById('popup').style.display = 'none';
   document.getElementById('popupAlta').style.display = 'none';
@@ -9,7 +41,6 @@ function cerrarPopups() {
 
 async function registrarJugador(event) {
   event.preventDefault();
-
   const nombre = document.getElementById('nombreJugador').value.trim();
   const token = document.querySelector('[name="h-captcha-response"]')?.value;
   const mensaje = document.getElementById('mensajeAlta');
@@ -28,77 +59,75 @@ async function registrarJugador(event) {
 
     const json = await res.json();
     if (res.ok) {
-      mensaje.textContent = '✅ Jugador registrado correctamente.';
+      mensaje.textContent = 'Jugador registrado correctamente.';
       hcaptcha.reset();
     } else {
-      mensaje.textContent = json?.error || '❌ Error al registrar.';
+      mensaje.textContent = json?.error || 'Error al registrar.';
     }
   } catch (err) {
-    console.error('Error al registrar:', err);
-    mensaje.textContent = '❌ Error al conectar con el servidor.';
+    mensaje.textContent = 'Error al conectar con el servidor.';
   }
 }
 
 async function cargarMejoras() {
-  const cont1 = document.getElementById("track1");
-  const cont2 = document.getElementById("track2");
-  cont1.innerHTML = cont2.innerHTML = "<p style='text-align:center;'>⏳ Cargando resultados...</p>";
+  const contenedor = document.getElementById('mejoras');
+  contenedor.innerHTML = '<p>Cargando resultados...</p>';
 
   try {
-    const res = await fetch("/api/tiempos-mejorados");
+    const res = await fetch('/api/tiempos-mejorados');
     const data = await res.json();
+    contenedor.innerHTML = '';
 
-    cont1.innerHTML = cont2.innerHTML = "";
+    const ranking = {};
+    const puntos = [10, 9, 8, 7, 6, 5, 4, 3, 2];
 
-    data.forEach((track, i) => {
-      const card = i === 0 ? cont1 : cont2;
-      const titulo = document.createElement("h3");
-      titulo.innerHTML = `<span style="color:red;">${track.pestana}</span><br>${track.escenario} - ${track.pista}`;
+    data.forEach((pista, idx) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+
+      const titulo = document.createElement('h3');
+      titulo.innerHTML = `<span style="color:red">${idx === 0 ? 'Race Mode: Single Class' : '3 Lap: Single Class'}</span><br>${pista.escenario} - ${pista.pista}`;
       card.appendChild(titulo);
 
-      const tabla = document.createElement("table");
+      const tabla = document.createElement('table');
       tabla.innerHTML = `
         <thead><tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th></tr></thead>
-        <tbody>${track.resultados.map((r, i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${r.jugador}</td>
-            <td>${r.tiempo.toFixed(2)} s</td>
-          </tr>`).join('')}
-        </tbody>`;
+        <tbody>
+          ${pista.resultados.map((r, i) => {
+            const puntosObtenidos = i < puntos.length ? puntos[i] : 1;
+            ranking[r.jugador] = (ranking[r.jugador] || 0) + puntosObtenidos;
+            return `<tr><td>${i + 1}</td><td>${r.jugador}</td><td>${r.tiempo.toFixed(2)} s</td></tr>`;
+          }).join('')}
+        </tbody>
+      `;
       card.appendChild(tabla);
+      contenedor.appendChild(card);
     });
+
+    const entries = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
+    document.querySelector('#rankingSemanal .resultado').innerHTML =
+      `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>` +
+      entries.map(([jugador, puntos], i) => `<tr><td>${i + 1}</td><td>${jugador}</td><td>${puntos}</td></tr>`).join('') +
+      `</tbody></table>`;
   } catch (err) {
-    console.error("❌ Error capturado en cargarMejoras:", err);
-    cont1.innerHTML = cont2.innerHTML = "<div style='color:red;'>❌ Error al cargar los resultados</div>";
+    console.error('❌ Error capturado en cargarMejoras:', err);
+    contenedor.innerHTML = '<p>Error al cargar los resultados.</p>';
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  cargarMejoras();
+async function cargarRankingAnual() {
+  try {
+    const res = await fetch('/api/ranking-anual');
+    const data = await res.json();
 
-  const hoy = new Date();
-  const inicio = new Date(hoy.getFullYear(), 0, 1);
-  const diff = (hoy - inicio + ((inicio.getTimezoneOffset() - hoy.getTimezoneOffset()) * 60000)) / 86400000;
-  const numeroSemana = Math.ceil((diff + inicio.getDay() + 1) / 7);
-  document.getElementById("tituloSemana").textContent = `LIGA VELOCIDRONE - Semana ${numeroSemana}`;
+    const html = data.map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntos}</td></tr>`
+    ).join('');
 
-  document.getElementById("btnReglamento").addEventListener("click", async () => {
-    try {
-      const r = await fetch("/reglamento.txt");
-      const texto = await r.text();
-      document.getElementById("popupTexto").innerHTML = texto.replace(/\n/g, "<br>");
-    } catch {
-      document.getElementById("popupTexto").textContent = "⚠ Error al cargar el reglamento.";
-    }
-    document.getElementById("popup").style.display = "block";
-    document.getElementById("overlay").style.display = "block";
-  });
-
-  document.getElementById("btnAlta").addEventListener("click", () => {
-    document.getElementById("popupAlta").style.display = "block";
-    document.getElementById("overlay").style.display = "block";
-    document.getElementById("mensajeAlta").textContent = '';
-    if (window.hcaptcha) hcaptcha.reset();
-  });
-});
+    document.querySelector('#rankingAnual .resultado').innerHTML =
+      `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>${html}</tbody></table>`;
+  } catch (err) {
+    console.error('Error al cargar ranking anual:', err);
+    document.querySelector('#rankingAnual .resultado').innerHTML = '<p>Error</p>';
+  }
+}
