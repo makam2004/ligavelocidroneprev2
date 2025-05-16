@@ -1,12 +1,9 @@
 import express from 'express';
 import basicAuth from 'express-basic-auth';
-import supabase from './supabaseClient.js'; // si está en la raíz
+import supabase from '../supabaseClient.js';
 
 
 const router = express.Router();
-
-// Supabase client
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Middleware de autenticación solo para rutas /admin y /admin/update-tracks
 const auth = basicAuth({
