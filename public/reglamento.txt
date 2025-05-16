@@ -1,4 +1,5 @@
-Cada piloto deberá registrarse con el nombre exacto con el que se haya dado de alta en Velocidrone (Mayúsculas y minúsculas incluidas)
+Cada piloto deberá registrarse con el nombre exacto con el que se haya dado de alta en Velocidrone 
+(Mayúsculas y minúsculas incluidas)
 Los tiempos sólamente quedarán registrados si se compite en:
 	Track 1 en "SINGLE CLASS - LAPS"
 	Track 2 en "3 LAP: SINGLE CLASS"

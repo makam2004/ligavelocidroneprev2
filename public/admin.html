@@ -1,88 +1,96 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Panel de Administración - Liga Velocidrone</title>
+  <meta charset="UTF-8">
+  <title>Panel de Administración</title>
   <style>
     body {
-      background-color: black;
+      background: black;
       color: white;
-      font-family: Arial, sans-serif;
+      font-family: sans-serif;
       padding: 30px;
     }
-    h1 {
-      font-size: 26px;
-      margin-bottom: 20px;
-    }
-    form {
-      max-width: 500px;
-    }
+
     label {
       display: block;
-      margin-top: 15px;
+      margin: 10px 0 5px;
     }
+
     input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      border: none;
-      border-radius: 4px;
+      padding: 5px;
+      margin-bottom: 15px;
+      width: 200px;
     }
+
     button {
-      margin-top: 20px;
-      padding: 10px 15px;
-      font-size: 16px;
-      background-color: #007bff;
-      border: none;
-      border-radius: 5px;
-      color: white;
+      padding: 10px 20px;
+      margin-right: 10px;
       cursor: pointer;
     }
+
     #mensaje {
       margin-top: 20px;
-      font-size: 16px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-  <h1>⚙️ Administración de Tracks</h1>
+  <h1>Panel de Administración de Tracks</h1>
 
   <form id="formTracks">
-    <label>Track 1 - Escenario ID:
-      <input name="track1_escena" type="number" required />
-    </label>
-    <label>Track 1 - Pista ID:
-      <input name="track1_pista" type="number" required />
-    </label>
-    <label>Track 2 - Escenario ID:
-      <input name="track2_escena" type="number" required />
-    </label>
-    <label>Track 2 - Pista ID:
-      <input name="track2_pista" type="number" required />
-    </label>
+    <label for="track1_escena">Track 1 - Escena ID</label>
+    <input id="track1_escena" name="track1_escena" required>
+
+    <label for="track1_pista">Track 1 - Pista ID</label>
+    <input id="track1_pista" name="track1_pista" required>
+
+    <label for="track2_escena">Track 2 - Escena ID</label>
+    <input id="track2_escena" name="track2_escena" required>
+
+    <label for="track2_pista">Track 2 - Pista ID</label>
+    <input id="track2_pista" name="track2_pista" required>
+
+    <br>
     <button type="submit">Actualizar Tracks</button>
+    <button type="button" id="btnCommit">Consolidar Ranking</button>
   </form>
 
   <div id="mensaje"></div>
 
   <script>
-    document.getElementById("formTracks").onsubmit = async (e) => {
+    document.getElementById("formTracks").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const formData = Object.fromEntries(new FormData(e.target));
+
+      const datos = {
+        track1_escena: document.getElementById("track1_escena").value,
+        track1_pista: document.getElementById("track1_pista").value,
+        track2_escena: document.getElementById("track2_escena").value,
+        track2_pista: document.getElementById("track2_pista").value
+      };
 
       try {
-const res = await fetch('/admin/update-tracks', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(formData)
-});
-const json = await res.json();
-document.getElementById("mensaje").textContent = json.mensaje || "✅ Actualización completada.";
+        const res = await fetch("/admin/update-tracks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(datos)
+        });
+        const json = await res.json();
+        document.getElementById("mensaje").textContent = json.mensaje || json.error;
       } catch (err) {
-        document.getElementById("mensaje").textContent = "❌ Error al actualizar tracks.";
+        document.getElementById("mensaje").textContent = "❌ Error de red o servidor";
       }
-    };
+    });
+
+    document.getElementById("btnCommit").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/admin/commit-ranking", { method: "POST" });
+        const json = await res.json();
+        document.getElementById("mensaje").textContent = json.mensaje || json.error;
+      } catch (err) {
+        document.getElementById("mensaje").textContent = "❌ Error al consolidar ranking";
+      }
+    });
   </script>
 
 </body>

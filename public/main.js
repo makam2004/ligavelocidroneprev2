@@ -1,18 +1,50 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const semana = obtenerSemanaActual();
-  const titulo = document.getElementById("tituloSemana");
-  if (titulo) titulo.textContent = `LIGA VELOCIDRONE - Semana ${semana}`;
+document.addEventListener("DOMContentLoaded", async () => {
+  const semanaActual = obtenerSemanaActual();
+  document.getElementById("titulo").innerText = `LIGA VELOCIDRONE - Semana ${semanaActual}`;
 
-  cargarMejoras();
-  cargarRankingAnual();
+  document.getElementById("btnReglamento").addEventListener("click", () => {
+    document.getElementById("popup").style.display = "block";
+    fetch("/reglamento.txt")
+      .then(res => res.text())
+      .then(txt => {
+        document.getElementById("popupTexto").innerText = txt;
+      });
+  });
 
-  const btnReglamento = document.getElementById('btnReglamento');
-  const btnAlta = document.getElementById('btnAlta');
-  const overlay = document.getElementById('overlay');
+  document.getElementById("btnAlta").addEventListener("click", () => {
+    document.getElementById("popupAlta").style.display = "block";
+  });
 
-  if (btnReglamento) btnReglamento.onclick = mostrarReglamento;
-  if (btnAlta) btnAlta.onclick = mostrarAlta;
-  if (overlay) overlay.onclick = cerrarPopups;
+  document.getElementById("popup").addEventListener("click", (e) => {
+    if (e.target.classList.contains("popup")) {
+      e.target.style.display = "none";
+    }
+  });
+
+  document.getElementById("popupAlta").addEventListener("click", (e) => {
+    if (e.target.classList.contains("popup")) {
+      e.target.style.display = "none";
+    }
+  });
+
+  document.querySelector("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById("nombreJugador").value;
+    try {
+      const res = await fetch("/api/alta-jugador", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre })
+      });
+      const json = await res.json();
+      document.getElementById("mensajeAlta").innerText = json.ok ? "✅ Alta enviada" : "❌ Error: " + json.error;
+    } catch (err) {
+      document.getElementById("mensajeAlta").innerText = "❌ Error al registrar: " + err.message;
+    }
+  });
+
+  await cargarMejoras();
+  await cargarRankingAnual();
 });
 
 function obtenerSemanaActual() {
@@ -22,144 +54,95 @@ function obtenerSemanaActual() {
   return Math.ceil((dias + inicio.getDay() + 1) / 7);
 }
 
-async function mostrarReglamento() {
-  const res = await fetch('reglamento.txt');
-  const texto = await res.text();
-  const popupTexto = document.getElementById('popupTexto');
-  const popup = document.getElementById('popup');
-  const overlay = document.getElementById('overlay');
-
-  if (popupTexto) popupTexto.innerHTML = `<pre>${texto}</pre>`;
-  if (popup) popup.style.display = 'block';
-  if (overlay) overlay.style.display = 'block';
-}
-
-function mostrarAlta() {
-  const popupAlta = document.getElementById('popupAlta');
-  const overlay = document.getElementById('overlay');
-  if (popupAlta) popupAlta.style.display = 'block';
-  if (overlay) overlay.style.display = 'block';
-  if (window.hcaptcha) hcaptcha.reset();
-}
-
-function cerrarPopups() {
-  const popup = document.getElementById('popup');
-  const popupAlta = document.getElementById('popupAlta');
-  const overlay = document.getElementById('overlay');
-  const mensajeAlta = document.getElementById('mensajeAlta');
-  const nombreJugador = document.getElementById('nombreJugador');
-
-  if (popup) popup.style.display = 'none';
-  if (popupAlta) popupAlta.style.display = 'none';
-  if (overlay) overlay.style.display = 'none';
-  if (mensajeAlta) mensajeAlta.textContent = '';
-  if (nombreJugador) nombreJugador.value = '';
-  if (window.hcaptcha) hcaptcha.reset();
-}
-
-async function registrarJugador(event) {
-  event.preventDefault();
-  const nombre = document.getElementById('nombreJugador')?.value.trim();
-  const token = document.querySelector('[name="h-captcha-response"]')?.value;
-  const mensaje = document.getElementById('mensajeAlta');
-
-  if (!nombre || !token) {
-    if (mensaje) mensaje.textContent = 'Por favor, completa el captcha y el nombre.';
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/alta-jugador', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, token })
-    });
-
-    const json = await res.json();
-    if (res.ok) {
-      if (mensaje) mensaje.textContent = 'Jugador registrado correctamente.';
-      if (window.hcaptcha) hcaptcha.reset();
-    } else {
-      if (mensaje) mensaje.textContent = json?.error || 'Error al registrar.';
-    }
-  } catch (err) {
-    if (mensaje) mensaje.textContent = 'Error al conectar con el servidor.';
-  }
-}
-
 async function cargarMejoras() {
-  const contenedor = document.getElementById('mejoras');
-  if (!contenedor) return;
-  contenedor.innerHTML = '<p>⏳ Leyendo resultados...</p>';
+  const contenedor = document.getElementById("mejoras");
+  contenedor.innerHTML = '<p>Leyendo Resultados...</p>';
 
   try {
-    const res = await fetch('/api/tiempos-mejorados');
-    const data = await res.json();
+    const res = await fetch("/api/tiempos-mejorados");
+    const pistas = await res.json();
 
-    if (!Array.isArray(data)) throw new Error("Datos no válidos");
+    contenedor.innerHTML = "";
 
-    contenedor.innerHTML = '';
+    pistas.forEach((pista, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
 
-    const ranking = {};
-    const puntos = [10, 9, 8, 7, 6, 5, 4, 3, 2];
-
-    data.forEach((pista, idx) => {
-      const card = document.createElement('div');
-      card.classList.add('card');
-
-      const titulo = document.createElement('h3');
-      const pestaña = idx === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
-      titulo.innerHTML = `<span style="color:red">${pestaña}</span><br>${pista.escenario} - ${pista.pista}`;
+      const titulo = document.createElement("h3");
+      const pestana = idx === 0 ? "Race Mode: Single Class" : "3 Lap: Single Class";
+      titulo.innerHTML = `<div class="pestana">${pestana}</div>${pista.escenario} - ${pista.pista}`;
       card.appendChild(titulo);
 
-      const tabla = document.createElement('table');
+      const tabla = document.createElement("table");
       tabla.innerHTML = `
-        <thead><tr><th>Ranking</th><th>Piloto</th><th>Tiempo</th></tr></thead>
-        <tbody>
-          ${pista.resultados.map((r, i) => {
-            const puntosObtenidos = i < puntos.length ? puntos[i] : 1;
-            ranking[r.jugador] = (ranking[r.jugador] || 0) + puntosObtenidos;
-            return `<tr><td>${i + 1}</td><td>${r.jugador}</td><td>${r.tiempo.toFixed(2)} s</td></tr>`;
-          }).join('')}
-        </tbody>
+        <tr>
+          <th>#</th>
+          <th>Piloto</th>
+          <th>Tiempo</th>
+          <th>Mejora</th>
+        </tr>
       `;
+
+      pista.resultados.forEach((r, i) => {
+        const fila = document.createElement("tr");
+        if (r.mejora > 0) fila.classList.add("mejorado");
+        else if (r.mejora < 0) fila.classList.add("empeorado");
+
+        fila.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${r.jugador}</td>
+          <td>${r.tiempo}</td>
+          <td>${r.mejora > 0 ? "+" : ""}${r.mejora.toFixed(2)}</td>
+        `;
+        tabla.appendChild(fila);
+      });
+
       card.appendChild(tabla);
       contenedor.appendChild(card);
     });
-
-    const entries = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
-    const tablaSemanal = document.querySelector('#rankingSemanal .resultado');
-    if (tablaSemanal) {
-      tablaSemanal.innerHTML =
-        `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>` +
-        entries.map(([jugador, puntos], i) => `<tr><td>${i + 1}</td><td>${jugador}</td><td>${puntos}</td></tr>`).join('') +
-        `</tbody></table>`;
-    }
   } catch (err) {
-    console.error('❌ Error capturado en cargarMejoras:', err);
-    contenedor.innerHTML = '<p>Error al cargar los resultados.</p>';
+    console.error("❌ Error capturado en cargarMejoras:", err);
+    contenedor.innerHTML = '<p>Error al cargar resultados</p>';
   }
 }
 
 async function cargarRankingAnual() {
   try {
-    const res = await fetch('/api/ranking-anual');
+    const res = await fetch("/api/ranking-anual");
     const data = await res.json();
 
-    if (!Array.isArray(data)) throw new Error("Ranking anual inválido");
+    const contenedor = document.createElement("div");
+    contenedor.className = "ranking-row";
+    const card = document.createElement("div");
+    card.className = "card";
 
-    const html = data.map((r, i) =>
-      `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntos}</td></tr>`
-    ).join('');
+    const titulo = document.createElement("h3");
+    titulo.textContent = "Ranking Anual";
+    card.appendChild(titulo);
 
-    const tabla = document.querySelector('#rankingAnual .resultado');
-    if (tabla) {
-      tabla.innerHTML =
-        `<table><thead><tr><th>#</th><th>Piloto</th><th>Puntos</th></tr></thead><tbody>${html}</tbody></table>`;
-    }
+    const tabla = document.createElement("table");
+    tabla.innerHTML = `
+      <tr>
+        <th>#</th>
+        <th>Piloto</th>
+        <th>Puntos</th>
+      </tr>
+    `;
+
+    data.forEach((r, i) => {
+      const fila = document.createElement("tr");
+      fila.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${r.nombre}</td>
+        <td>${r.puntos}</td>
+      `;
+      tabla.appendChild(fila);
+    });
+
+    card.appendChild(tabla);
+    contenedor.appendChild(card);
+    document.getElementById("mejoras").appendChild(contenedor);
   } catch (err) {
-    console.error('Error al cargar ranking anual:', err);
-    const tabla = document.querySelector('#rankingAnual .resultado');
-    if (tabla) tabla.innerHTML = '<p>Error</p>';
+    console.error("main.js:155 Error al cargar ranking anual:", err);
   }
 }

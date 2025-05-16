@@ -5,9 +5,6 @@ import supabase from '../supabaseClient.js';
 
 const router = express.Router();
 
-// Supabase client
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-
 // Middleware de autenticación solo para rutas /admin y /admin/update-tracks
 const auth = basicAuth({
   users: { [process.env.ADMIN_USER]: process.env.ADMIN_PASS },
