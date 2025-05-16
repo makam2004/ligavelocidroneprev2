@@ -1,6 +1,6 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
-import supabase from '../supabaseClient.js';
+import supabase from '../supabaseClient.js'; // ✅ RUTA CORRECTA
 
 const router = express.Router();
 
@@ -11,8 +11,12 @@ function calcularSemanaActual() {
   return Math.ceil((dias + inicio.getDay() + 1) / 7);
 }
 
-async function obtenerResultados(url, nombresJugadores, selectorPestania) {
+async function obtenerResultados(url, nombresJugadores, textoPestania) {
   try {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      throw new Error('URL inválida');
+    }
+
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -21,14 +25,13 @@ async function obtenerResultados(url, nombresJugadores, selectorPestania) {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-    // Click en pestaña deseada
+    // Clic en pestaña específica
     await page.evaluate((texto) => {
-      const tabs = Array.from(document.querySelectorAll('a')).filter(el =>
-        el.textContent.includes(texto)
-      );
-      if (tabs.length > 0) tabs[0].click();
-    }, selectorPestania);
+      const tab = Array.from(document.querySelectorAll('a')).find(a => a.textContent.includes(texto));
+      if (tab) tab.click();
+    }, textoPestania);
 
+    await new Promise(res => setTimeout(res, 1000));
     await page.waitForSelector('tbody tr', { timeout: 10000 });
 
     const pista = await page.$eval('div.container h3', el => el.innerText.trim());
@@ -56,14 +59,25 @@ async function obtenerResultados(url, nombresJugadores, selectorPestania) {
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
   const semana = calcularSemanaActual();
-  const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+
+  // Leer jugadores
+  const { data: jugadores, error: errorJugadores } = await supabase.from('jugadores').select('id, nombre');
+  if (errorJugadores) return res.status(500).json({ error: 'Error al leer jugadores' });
   const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
 
-  const { data: config } = await supabase.from('configuracion').select('*').eq('id', 1).single();
+  // Leer configuración
+  const { data: config, error: errorConfig } = await supabase.from('configuracion').select('*').eq('id', 1).maybeSingle();
+  if (errorConfig || !config) return res.status(500).json({ error: 'No se pudo leer configuración' });
 
   const urls = [
-    { url: config.track1_url, pestaña: 'Race Mode' },
-    { url: config.track2_url, pestaña: '3 Lap' }
+    {
+      url: `https://www.velocidrone.com/leaderboard/${config.track1_escena}/${config.track1_pista}/All`,
+      pestaña: 'Race Mode: Single Class'
+    },
+    {
+      url: `https://www.velocidrone.com/leaderboard/${config.track2_escena}/${config.track2_pista}/All`,
+      pestaña: '3 Lap: Single Class'
+    }
   ];
 
   const respuesta = [];
@@ -85,7 +99,6 @@ router.get('/api/tiempos-mejorados', async (_req, res) => {
         .eq('jugador_id', r.jugador_id)
         .eq('pista', pista)
         .eq('escenario', escenario)
-        .limit(1)
         .maybeSingle();
 
       const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
