@@ -1,19 +1,8 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
-import supabase from '../supabaseClient.js';
+import supabase from './supabaseClient.js';
 
 const router = express.Router();
-
-const urls = [
-  {
-    url: 'https://www.velocidrone.com/leaderboard/33/1527/All',
-    pestana: 'Race Mode: Single Class'
-  },
-  {
-    url: 'https://www.velocidrone.com/leaderboard/16/1795/All',
-    pestana: '3 Lap: Single Class'
-  }
-];
 
 function calcularSemanaActual() {
   const fecha = new Date();
@@ -22,102 +11,120 @@ function calcularSemanaActual() {
   return Math.ceil((dias + inicio.getDay() + 1) / 7);
 }
 
-async function obtenerResultados(url, pestana, jugadoresRegistrados) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+async function obtenerResultados(url, pestaña, jugadoresPermitidos) {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  await page.evaluate((pestanaTexto) => {
-    const tab = Array.from(document.querySelectorAll('a')).find(el =>
-      el.textContent.includes(pestanaTexto)
-    );
-    if (tab) tab.click();
-  }, pestana);
+    // Selección dinámica de pestaña
+    await page.evaluate(pestaña => {
+      const tabs = Array.from(document.querySelectorAll('a'));
+      const target = tabs.find(el => el.textContent.includes(pestaña));
+      if (target) target.click();
+    }, pestaña);
 
-  await page.waitForSelector('tbody tr', { timeout: 10000 });
+    await page.waitForTimeout(2000);
+    await page.waitForSelector('tbody tr');
 
-  const pista = await page.$eval('div.container h3', el => el.innerText.trim());
-  const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
+    const pista = await page.$eval('div.container h3', el => el.innerText.trim());
+    const escenario = await page.$eval('h2.text-center', el => el.innerText.trim());
 
-  const resultados = await page.$$eval('tbody tr', (filas, jugadores) => {
-    return filas.map(fila => {
-      const celdas = fila.querySelectorAll('td');
-      const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.').trim());
-      const jugador = celdas[2]?.innerText.trim();
-      if (jugadores.includes(jugador)) return { jugador, tiempo };
-      return null;
-    }).filter(Boolean);
-  }, jugadoresRegistrados);
+    const resultados = await page.$$eval('tbody tr', (filas, permitidos) => {
+      return filas.map(fila => {
+        const celdas = fila.querySelectorAll('td');
+        const jugador = celdas[2]?.innerText.trim();
+        const tiempo = parseFloat(celdas[1]?.innerText.replace(',', '.'));
+        if (permitidos.includes(jugador)) {
+          return { jugador, tiempo };
+        }
+        return null;
+      }).filter(Boolean);
+    }, jugadoresPermitidos);
 
-  await browser.close();
-  return { escenario, pista, pestana, resultados };
+    await browser.close();
+    return { pista, escenario, pestaña, resultados };
+  } catch (err) {
+    console.error('❌ Scraping error:', err);
+    return { pista: 'Error', escenario: 'Error', pestaña, resultados: [] };
+  }
 }
 
 router.get('/api/tiempos-mejorados', async (_req, res) => {
-  try {
-    const semana = calcularSemanaActual();
+  const semana = calcularSemanaActual();
 
-    const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
-    const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
-    const resultadosFinales = [];
+  // Obtener lista de jugadores
+  const { data: jugadores } = await supabase.from('jugadores').select('id, nombre');
+  const nombreToId = Object.fromEntries(jugadores.map(j => [j.nombre, j.id]));
 
-    for (const { url, pestana } of urls) {
-      const { escenario, pista, resultados } = await obtenerResultados(url, pestana, Object.keys(nombreToId));
+  // Obtener configuración dinámica
+  const { data: config, error: errConfig } = await supabase.from('configuracion').select('*').eq('id', 1).maybeSingle();
+  if (errConfig || !config) return res.status(500).json({ error: 'No se pudo obtener configuración de tracks.' });
 
-      const comparados = [];
+  const urls = [
+    {
+      url: `https://www.velocidrone.com/leaderboard/${config.track1_escena}/${config.track1_pista}/All`,
+      pestaña: 'Race Mode: Single Class'
+    },
+    {
+      url: `https://www.velocidrone.com/leaderboard/${config.track2_escena}/${config.track2_pista}/All`,
+      pestaña: '3 Lap: Single Class'
+    }
+  ];
 
-      for (const r of resultados) {
-        const jugador_id = nombreToId[r.jugador];
-        if (!jugador_id) continue;
+  const respuesta = [];
 
-        const { data: hist } = await supabase
-          .from('mejores_tiempos')
-          .select('mejor_tiempo')
-          .eq('jugador_id', jugador_id)
-          .eq('pista', pista)
-          .eq('escenario', escenario)
-          .limit(1)
-          .maybeSingle();
+  for (const { url, pestaña } of urls) {
+    const { pista, escenario, resultados } = await obtenerResultados(url, pestaña, Object.keys(nombreToId));
 
-        const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
-        const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
+    const comparados = [];
 
-        comparados.push({ jugador: r.jugador, tiempo: r.tiempo, mejora });
+    for (const r of resultados) {
+      const id = nombreToId[r.jugador];
+      if (!id) continue;
 
-        // Actualiza mejor tiempo si es nuevo récord
-        if (!hist || r.tiempo < hist.mejor_tiempo) {
-          await supabase.from('mejores_tiempos').upsert({
-            jugador_id,
-            pista,
-            escenario,
-            mejor_tiempo: r.tiempo,
-            ultima_actualizacion: new Date().toISOString()
-          }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
-        }
+      const { data: hist } = await supabase
+        .from('mejores_tiempos')
+        .select('mejor_tiempo')
+        .eq('jugador_id', id)
+        .eq('pista', pista)
+        .eq('escenario', escenario)
+        .limit(1)
+        .maybeSingle();
 
-        // Guarda resultado
-        await supabase.from('resultados').insert({
-          jugador_id,
-          semana,
+      const mejorHistorico = hist?.mejor_tiempo ?? r.tiempo;
+      const mejora = parseFloat((mejorHistorico - r.tiempo).toFixed(2));
+
+      comparados.push({ jugador: r.jugador, tiempo: r.tiempo, mejora });
+
+      if (!hist || r.tiempo < hist.mejor_tiempo) {
+        await supabase.from('mejores_tiempos').upsert({
+          jugador_id: id,
           pista,
           escenario,
-          tiempo: r.tiempo
-        });
+          mejor_tiempo: r.tiempo,
+          ultima_actualizacion: new Date().toISOString()
+        }, { onConflict: ['jugador_id', 'pista', 'escenario'] });
       }
 
-      comparados.sort((a, b) => a.tiempo - b.tiempo);
-      resultadosFinales.push({ pestana, pista, escenario, resultados: comparados });
+      await supabase.from('resultados').insert({
+        jugador_id: id,
+        semana,
+        pista,
+        escenario,
+        tiempo: r.tiempo
+      });
     }
 
-    res.json(resultadosFinales);
-  } catch (e) {
-    console.error("Scraping error:", e);
-    res.status(500).json({ error: 'Error en el scraping' });
+    comparados.sort((a, b) => a.tiempo - b.tiempo);
+    respuesta.push({ pista, escenario, pestaña, resultados: comparados });
   }
+
+  res.json(respuesta);
 });
 
 export default router;
