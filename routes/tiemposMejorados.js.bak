@@ -1,6 +1,6 @@
 import express from 'express';
 import puppeteer from 'puppeteer';
-import supabase from './supabaseClient.js';
+import supabase from '../supabaseClient.js';
 
 const router = express.Router();
 
